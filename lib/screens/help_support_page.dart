@@ -1,8 +1,19 @@
 import 'package:flutter/material.dart';
+import '../utils/app_localizations.dart';
+import 'package:provider/provider.dart';
+import '../utils/theme_provider.dart';
 
 class HelpSupportPage extends StatelessWidget {
+  const HelpSupportPage({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    final textColor = isDarkMode ? Colors.white : Colors.black87;
+    final cardColor = isDarkMode ? const Color(0xFF1F1F1F) : Colors.white;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -55,7 +66,7 @@ class HelpSupportPage extends StatelessWidget {
                           ),
                           SizedBox(width: 10),
                           Text(
-                            'Need Help?',
+                            localizations.translate('contact_us'),
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -66,7 +77,7 @@ class HelpSupportPage extends StatelessWidget {
                       ),
                       SizedBox(height: 10),
                       Text(
-                        'Connect with me on social media',
+                        localizations.translate('connect_with_us'),
                         style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
                     ],
@@ -74,25 +85,33 @@ class HelpSupportPage extends StatelessWidget {
                 ),
                 SizedBox(height: 20),
                 Text(
-                  'Social Links',
+                  localizations.translate('social_links'),
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: textColor,
                   ),
                 ),
                 SizedBox(height: 10),
                 Column(
                   children: <Widget>[
-                    socialLink('GitHub', '@anish-cmd'),
-                    socialLink('LinkedIn', '@anishchauhan25'),
+                    socialLink('GitHub', '@anish-cmd', cardColor, textColor),
+                    socialLink(
+                      'LinkedIn',
+                      '@anishchauhan25',
+                      cardColor,
+                      textColor,
+                    ),
                   ],
                 ),
                 SizedBox(height: 20),
                 Center(
                   child: Text(
                     '© 2025 Anish Library. All rights reserved.',
-                    style: TextStyle(fontSize: 14, color: Colors.black54),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: textColor.withOpacity(0.7),
+                    ),
                   ),
                 ),
               ],
@@ -103,13 +122,22 @@ class HelpSupportPage extends StatelessWidget {
     );
   }
 
-  Widget socialLink(String platform, String username) {
+  Widget socialLink(
+    String platform,
+    String username,
+    Color cardColor,
+    Color textColor,
+  ) {
     return Card(
       margin: EdgeInsets.symmetric(vertical: 5),
+      color: cardColor,
       child: ListTile(
-        title: Text(platform),
-        subtitle: Text(username),
-        trailing: Icon(Icons.arrow_forward_ios),
+        title: Text(platform, style: TextStyle(color: textColor)),
+        subtitle: Text(
+          username,
+          style: TextStyle(color: textColor.withOpacity(0.7)),
+        ),
+        trailing: Icon(Icons.arrow_forward_ios, color: textColor),
         onTap: () {
           // Add functionality to open the respective social media link
         },
