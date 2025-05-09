@@ -3,6 +3,7 @@ import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme_provider.dart';
 import '../utils/app_localizations.dart';
+import '../utils/url_launcher_utils.dart';
 
 class HomeScreen extends StatelessWidget {
   final int currentIndex;
@@ -150,22 +151,66 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
             ),
-            ListTile(title: Text('Contact Us', style: textStyle), onTap: () {}),
+            ListTile(
+              title: Text('Contact Us', style: textStyle),
+              leading: Icon(Icons.contact_mail, color: Colors.white),
+              onTap: () {
+                // Close the drawer first
+                Navigator.pop(context);
+                // Launch Anish's website
+                UrlLauncherUtils.launchUrlWithErrorHandling(
+                  context,
+                  'https://www.anishchauhan.com.np/',
+                );
+              },
+            ),
             ListTile(
               title: Text('Our Website', style: textStyle),
-              onTap: () {},
+              leading: Icon(Icons.language, color: Colors.white),
+              onTap: () {
+                // Close the drawer first
+                Navigator.pop(context);
+                // Launch Anish's website
+                UrlLauncherUtils.launchUrlWithErrorHandling(
+                  context,
+                  'https://www.anishchauhan.com.np/',
+                );
+              },
             ),
             ListTile(
               title: Text('Facebook Page', style: textStyle),
-              onTap: () {},
+              leading: Icon(Icons.facebook, color: Colors.white),
+              onTap: () {
+                // Close the drawer first
+                Navigator.pop(context);
+                // Launch Anish's website
+                UrlLauncherUtils.launchUrlWithErrorHandling(
+                  context,
+                  'https://www.anishchauhan.com.np/',
+                );
+              },
             ),
-            ListTile(title: Text('Instagram', style: textStyle), onTap: () {}),
+            ListTile(
+              title: Text('Instagram', style: textStyle),
+              leading: Icon(Icons.photo_camera, color: Colors.white),
+              onTap: () {
+                // Close the drawer first
+                Navigator.pop(context);
+                // Launch Anish's website
+                UrlLauncherUtils.launchUrlWithErrorHandling(
+                  context,
+                  'https://www.anishchauhan.com.np/',
+                );
+              },
+            ),
             ListTile(
               title: Text('BCA Entrance Questions', style: textStyle),
+              leading: Icon(Icons.quiz, color: Colors.white),
               onTap: () {},
             ),
             ListTile(
               title: Text('BCA Semester I', style: textStyle),
+              leading: Icon(Icons.book, color: Colors.white),
               onTap: () {
                 onIndexChanged(5);
                 Navigator.pop(context);
@@ -173,6 +218,7 @@ class HomeScreen extends StatelessWidget {
             ),
             ListTile(
               title: Text('BCA Semester II', style: textStyle),
+              leading: Icon(Icons.book, color: Colors.white),
               onTap: () {
                 onIndexChanged(6);
                 Navigator.pop(context);
@@ -180,6 +226,7 @@ class HomeScreen extends StatelessWidget {
             ),
             ListTile(
               title: Text('BCA Semester III', style: textStyle),
+              leading: Icon(Icons.book, color: Colors.white),
               onTap: () {
                 onIndexChanged(7);
                 Navigator.pop(context);
@@ -187,6 +234,7 @@ class HomeScreen extends StatelessWidget {
             ),
             ListTile(
               title: Text('BCA Semester IV', style: textStyle),
+              leading: Icon(Icons.book, color: Colors.white),
               onTap: () {
                 onIndexChanged(8);
                 Navigator.pop(context);
@@ -194,6 +242,7 @@ class HomeScreen extends StatelessWidget {
             ),
             ListTile(
               title: Text('BCA Semester V', style: textStyle),
+              leading: Icon(Icons.book, color: Colors.white),
               onTap: () {
                 onIndexChanged(9);
                 Navigator.pop(context);
@@ -201,6 +250,7 @@ class HomeScreen extends StatelessWidget {
             ),
             ListTile(
               title: Text('BCA Semester VI', style: textStyle),
+              leading: Icon(Icons.book, color: Colors.white),
               onTap: () {
                 onIndexChanged(10);
                 Navigator.pop(context);
@@ -208,6 +258,7 @@ class HomeScreen extends StatelessWidget {
             ),
             ListTile(
               title: Text('BCA Semester VII', style: textStyle),
+              leading: Icon(Icons.book, color: Colors.white),
               onTap: () {
                 onIndexChanged(11);
                 Navigator.pop(context);
@@ -215,6 +266,7 @@ class HomeScreen extends StatelessWidget {
             ),
             ListTile(
               title: Text('BCA Semester VIII', style: textStyle),
+              leading: Icon(Icons.book, color: Colors.white),
               onTap: () {
                 onIndexChanged(12);
                 Navigator.pop(context);

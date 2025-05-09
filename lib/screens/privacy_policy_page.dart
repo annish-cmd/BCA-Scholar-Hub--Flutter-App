@@ -1,10 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../utils/theme_provider.dart';
 
 class PrivacyPolicyPage extends StatelessWidget {
   const PrivacyPolicyPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    final textColor = isDarkMode ? Colors.white : Colors.black;
+    final cardColor = isDarkMode ? const Color(0xFF1F1F1F) : Colors.white;
+    final backgroundColor =
+        isDarkMode ? const Color(0xFF121212) : Colors.blue[50]!;
+    final secondaryBackgroundColor =
+        isDarkMode ? const Color(0xFF1A1A1A) : Colors.purple[50]!;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -42,7 +53,7 @@ class PrivacyPolicyPage extends StatelessWidget {
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.blue[50]!, Colors.purple[50]!],
+            colors: [backgroundColor, secondaryBackgroundColor],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -52,44 +63,65 @@ class PrivacyPolicyPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _SectionHeading(title: 'Privacy Policy'),
+              _SectionHeading(title: 'Privacy Policy', textColor: textColor),
               const SizedBox(height: 16),
-              _buildDateCard(context),
+              _buildDateCard(context, isDarkMode, cardColor, textColor),
               const SizedBox(height: 24),
               _buildSection(
                 context,
                 'Introduction',
                 'This Privacy Policy explains how Anish Library collects, uses, and discloses your information when you use our application. By using our services, you agree to the collection and use of information in accordance with this policy.',
+                isDarkMode,
+                cardColor,
+                textColor,
               ),
               _buildSection(
                 context,
                 'Information Collection and Use',
                 'We collect several different types of information for various purposes to provide and improve our service to you. While using our app, we may ask you to provide us with certain personally identifiable information that can be used to contact or identify you.',
+                isDarkMode,
+                cardColor,
+                textColor,
               ),
               _buildSubSection(
                 context,
                 'Personal Data',
                 'We may collect personal information that you provide to us such as name, email address, and other contact details.',
+                isDarkMode,
+                cardColor,
+                textColor,
               ),
               _buildSubSection(
                 context,
                 'Usage Data',
                 'We may also collect information on how the app is accessed and used. This data may include information such as your device\'s IP address, browser type, pages visited, time spent on those pages, and other diagnostic data.',
+                isDarkMode,
+                cardColor,
+                textColor,
               ),
               _buildSection(
                 context,
                 'Data Security',
                 'The security of your data is important to us, but remember that no method of transmission over the Internet, or method of electronic storage is 100% secure. While we strive to use commercially acceptable means to protect your personal data, we cannot guarantee its absolute security.',
+                isDarkMode,
+                cardColor,
+                textColor,
               ),
               _buildSection(
                 context,
                 'Changes to This Privacy Policy',
                 'We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "effective date" at the top of this Privacy Policy.',
+                isDarkMode,
+                cardColor,
+                textColor,
               ),
               _buildSection(
                 context,
                 'Contact Us',
                 'If you have any questions about this Privacy Policy, please contact us at:\n\n• Email: contact@anishlibrary.com\n• Website: www.anishlibrary.com',
+                isDarkMode,
+                cardColor,
+                textColor,
               ),
             ],
           ),
@@ -99,13 +131,23 @@ class PrivacyPolicyPage extends StatelessWidget {
   }
 
   void _showDownloadDialog(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Download Privacy Policy'),
-          content: const Text(
+          backgroundColor: isDarkMode ? const Color(0xFF1F1F1F) : Colors.white,
+          title: Text(
+            'Download Privacy Policy',
+            style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+          ),
+          content: Text(
             'Would you like to download the Privacy Policy as a PDF file?',
+            style: TextStyle(
+              color: isDarkMode ? Colors.white70 : Colors.black87,
+            ),
           ),
           actions: [
             TextButton(
@@ -131,31 +173,62 @@ class PrivacyPolicyPage extends StatelessWidget {
   }
 
   void _showShareDialog(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+    final textColor = isDarkMode ? Colors.white : Colors.black;
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Share Privacy Policy'),
+          backgroundColor: isDarkMode ? const Color(0xFF1F1F1F) : Colors.white,
+          title: Text(
+            'Share Privacy Policy',
+            style: TextStyle(color: textColor),
+          ),
           content: SizedBox(
             width: double.maxFinite,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Choose how you would like to share:'),
+                Text(
+                  'Choose how you would like to share:',
+                  style: TextStyle(color: textColor),
+                ),
                 const SizedBox(height: 16),
                 Wrap(
                   spacing: 16,
                   runSpacing: 16,
                   alignment: WrapAlignment.center,
                   children: [
-                    _buildShareOption(context, Icons.email, 'Email'),
+                    _buildShareOption(
+                      context,
+                      Icons.email,
+                      'Email',
+                      isDarkMode,
+                      textColor,
+                    ),
                     _buildShareOption(
                       context,
                       Icons.messenger_outline,
                       'Messenger',
+                      isDarkMode,
+                      textColor,
                     ),
-                    _buildShareOption(context, Icons.copy, 'Copy Link'),
-                    _buildShareOption(context, Icons.phone_android, 'SMS'),
+                    _buildShareOption(
+                      context,
+                      Icons.copy,
+                      'Copy Link',
+                      isDarkMode,
+                      textColor,
+                    ),
+                    _buildShareOption(
+                      context,
+                      Icons.phone_android,
+                      'SMS',
+                      isDarkMode,
+                      textColor,
+                    ),
                   ],
                 ),
               ],
@@ -177,7 +250,13 @@ class PrivacyPolicyPage extends StatelessWidget {
     );
   }
 
-  Widget _buildShareOption(BuildContext context, IconData icon, String label) {
+  Widget _buildShareOption(
+    BuildContext context,
+    IconData icon,
+    String label,
+    bool isDarkMode,
+    Color textColor,
+  ) {
     return InkWell(
       onTap: () {
         Navigator.of(context).pop();
@@ -193,19 +272,30 @@ class PrivacyPolicyPage extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 25,
-            backgroundColor: Colors.blue.withAlpha(30),
+            backgroundColor:
+                isDarkMode
+                    ? Colors.blue.withAlpha(50)
+                    : Colors.blue.withAlpha(30),
             child: Icon(icon, color: Colors.blue),
           ),
           const SizedBox(height: 8),
-          Text(label),
+          Text(label, style: TextStyle(color: textColor)),
         ],
       ),
     );
   }
 
-  Widget _buildDateCard(BuildContext context) {
+  Widget _buildDateCard(
+    BuildContext context,
+    bool isDarkMode,
+    Color cardColor,
+    Color textColor,
+  ) {
+    final secondaryTextColor = isDarkMode ? Colors.grey[400] : Colors.grey;
+
     return Card(
       elevation: 2,
+      color: cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -214,21 +304,28 @@ class PrivacyPolicyPage extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.blue.withAlpha(30),
+                color: Colors.blue.withAlpha(isDarkMode ? 50 : 30),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(Icons.calendar_today, color: Colors.blue),
             ),
             const SizedBox(width: 16),
-            const Column(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Effective Date',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: textColor,
+                  ),
                 ),
                 SizedBox(height: 4),
-                Text('May 10, 2024', style: TextStyle(color: Colors.grey)),
+                Text(
+                  'May 10, 2024',
+                  style: TextStyle(color: secondaryTextColor),
+                ),
               ],
             ),
           ],
@@ -237,7 +334,14 @@ class PrivacyPolicyPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSection(BuildContext context, String title, String content) {
+  Widget _buildSection(
+    BuildContext context,
+    String title,
+    String content,
+    bool isDarkMode,
+    Color cardColor,
+    Color textColor,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -265,11 +369,11 @@ class PrivacyPolicyPage extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cardColor,
             borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withAlpha(10),
+                color: Colors.black.withAlpha(isDarkMode ? 40 : 10),
                 blurRadius: 5,
                 offset: const Offset(0, 2),
               ),
@@ -277,7 +381,7 @@ class PrivacyPolicyPage extends StatelessWidget {
           ),
           child: Text(
             content,
-            style: const TextStyle(fontSize: 16, height: 1.5),
+            style: TextStyle(fontSize: 16, height: 1.5, color: textColor),
           ),
         ),
         const SizedBox(height: 24),
@@ -285,7 +389,14 @@ class PrivacyPolicyPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSubSection(BuildContext context, String title, String content) {
+  Widget _buildSubSection(
+    BuildContext context,
+    String title,
+    String content,
+    bool isDarkMode,
+    Color cardColor,
+    Color textColor,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -318,11 +429,11 @@ class PrivacyPolicyPage extends StatelessWidget {
           margin: const EdgeInsets.only(left: 16),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cardColor,
             borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withAlpha(10),
+                color: Colors.black.withAlpha(isDarkMode ? 40 : 10),
                 blurRadius: 5,
                 offset: const Offset(0, 2),
               ),
@@ -330,7 +441,7 @@ class PrivacyPolicyPage extends StatelessWidget {
           ),
           child: Text(
             content,
-            style: const TextStyle(fontSize: 15, height: 1.5),
+            style: TextStyle(fontSize: 15, height: 1.5, color: textColor),
           ),
         ),
         const SizedBox(height: 20),
@@ -341,8 +452,9 @@ class PrivacyPolicyPage extends StatelessWidget {
 
 class _SectionHeading extends StatelessWidget {
   final String title;
+  final Color textColor;
 
-  const _SectionHeading({required this.title});
+  const _SectionHeading({required this.title, required this.textColor});
 
   @override
   Widget build(BuildContext context) {
@@ -350,7 +462,7 @@ class _SectionHeading extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 16),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.bold,
           color: Colors.purple,
