@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../utils/theme_provider.dart';
 
 class HelpSupportPage extends StatelessWidget {
-  const HelpSupportPage({Key? key}) : super(key: key);
+  const HelpSupportPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -107,9 +107,9 @@ class HelpSupportPage extends StatelessWidget {
                 SizedBox(height: 20),
                 Center(
                   child: Text(
-                    '© 2025 Anish Library. All rights reserved.',
+                    '© 2025 BCA Library. All rights reserved.',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 12,
                       color: textColor.withOpacity(0.7),
                     ),
                   ),
@@ -135,7 +135,9 @@ class HelpSupportPage extends StatelessWidget {
         title: Text(platform, style: TextStyle(color: textColor)),
         subtitle: Text(
           username,
-          style: TextStyle(color: textColor.withOpacity(0.7)),
+          style: TextStyle(
+            color: textColor.withAlpha(179),
+          ), // 0.7 opacity is approximately 179 alpha
         ),
         trailing: Icon(Icons.arrow_forward_ios, color: textColor),
         onTap: () {

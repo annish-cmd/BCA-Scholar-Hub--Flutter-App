@@ -4,9 +4,13 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'screens/home_screen.dart';
 import 'screens/profile_page.dart';
 import 'screens/bca_semester_page.dart';
+import 'screens/splash_screen.dart';
 import 'utils/theme_provider.dart';
 import 'utils/language_provider.dart';
 import 'utils/app_localizations.dart';
+
+// Global key to access MyApp state
+final GlobalKey<_MyAppState> myAppKey = GlobalKey<_MyAppState>();
 
 void main() {
   runApp(
@@ -15,7 +19,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => LanguageProvider()),
       ],
-      child: const MyApp(),
+      child: MyApp(key: myAppKey),
     ),
   );
 }
@@ -30,13 +34,19 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   int _currentIndex = 0;
 
+  void updateIndex(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final languageProvider = Provider.of<LanguageProvider>(context);
 
     // Create styled placeholder pages
-    final List<Widget> _pages = [
+    final List<Widget> pages = [
       // Home Page
       const PlaceholderPage(
         icon: Icons.home,
@@ -72,8 +82,21 @@ class _MyAppState extends State<MyApp> {
       const BcaSemesterPage(semester: 8, notes: 'Notes for BCA 8th Semester'),
     ];
 
+    // Determine which screen to show
+    Widget homeWidget;
+    if (false) {
+      // Disabled direct home screen for now, always start with splash
+      homeWidget = HomeScreen(
+        currentIndex: _currentIndex,
+        pages: pages,
+        onIndexChanged: updateIndex,
+      );
+    } else {
+      homeWidget = SplashScreen(pages: pages);
+    }
+
     return MaterialApp(
-      title: 'Anish Library',
+      title: 'BCA Library',
       debugShowCheckedModeBanner: false,
 
       // Localization setup
@@ -98,22 +121,14 @@ class _MyAppState extends State<MyApp> {
       // Apply global text scaling
       builder: (context, child) {
         return MediaQuery(
-          // Override text scaling
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaleFactor: themeProvider.textScaleFactor),
+          // Override text scaling using the new textScaler instead of deprecated textScaleFactor
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(themeProvider.textScaleFactor),
+          ),
           child: child!,
         );
       },
-      home: HomeScreen(
-        currentIndex: _currentIndex,
-        pages: _pages,
-        onIndexChanged: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-      ),
+      home: homeWidget,
     );
   }
 }
@@ -125,11 +140,11 @@ class PlaceholderPage extends StatelessWidget {
   final String descriptionKey;
 
   const PlaceholderPage({
-    Key? key,
+    super.key,
     required this.icon,
     required this.titleKey,
     required this.descriptionKey,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

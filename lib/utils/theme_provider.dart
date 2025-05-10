@@ -132,9 +132,7 @@ class ThemeProvider extends ChangeNotifier {
       colorScheme: ColorScheme.light(
         primary: Colors.blue,
         secondary: Colors.purple,
-        background: Colors.white,
         surface: Colors.white,
-        onBackground: Colors.black,
         onSurface: Colors.black,
       ),
       cardColor: Colors.white,
@@ -210,9 +208,7 @@ class ThemeProvider extends ChangeNotifier {
       colorScheme: ColorScheme.dark(
         primary: Colors.blue,
         secondary: Colors.purple,
-        background: const Color(0xFF121212),
         surface: const Color(0xFF1F1F1F),
-        onBackground: Colors.white,
         onSurface: Colors.white,
       ),
       cardColor: const Color(0xFF1F1F1F),

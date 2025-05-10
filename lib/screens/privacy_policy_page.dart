@@ -70,7 +70,7 @@ class PrivacyPolicyPage extends StatelessWidget {
               _buildSection(
                 context,
                 'Introduction',
-                'This Privacy Policy explains how Anish Library collects, uses, and discloses your information when you use our application. By using our services, you agree to the collection and use of information in accordance with this policy.',
+                'This Privacy Policy explains how BCA Library collects, uses, and discloses your information when you use our application. By using our services, you agree to the collection and use of information in accordance with this policy.',
                 isDarkMode,
                 cardColor,
                 textColor,
@@ -118,7 +118,7 @@ class PrivacyPolicyPage extends StatelessWidget {
               _buildSection(
                 context,
                 'Contact Us',
-                'If you have any questions about this Privacy Policy, please contact us at:\n\n• Email: contact@anishlibrary.com\n• Website: www.anishlibrary.com',
+                'If you have any questions about this Privacy Policy, please contact us at:\n\n• Email: contact@bcalibrary.com\n• Website: www.bcalibrary.com',
                 isDarkMode,
                 cardColor,
                 textColor,

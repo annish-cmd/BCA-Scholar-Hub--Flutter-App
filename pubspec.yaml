@@ -1,4 +1,4 @@
-name: anish_library
+name: BCA_Library
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -40,10 +40,12 @@ dependencies:
   shared_preferences: ^2.2.2
   provider: ^6.1.1
   url_launcher: ^6.2.5
+  animated_text_kit: ^4.2.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.13.1
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -90,3 +92,13 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# Flutter Launcher Icons configuration
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/anish_library.jpg"
+  adaptive_icon_background: "#ffffff" # Background color for Android adaptive icons
+  adaptive_icon_foreground: "assets/images/anish_library.jpg" # Foreground image for Android adaptive icons
+  min_sdk_android: 21 # android min sdk min:16, default 21
+  remove_alpha_ios: true # Make iOS icon background solid

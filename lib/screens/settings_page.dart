@@ -7,7 +7,7 @@ import 'privacy_policy_page.dart';
 import 'terms_of_service_page.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({Key? key}) : super(key: key);
+  const SettingsPage({super.key});
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();

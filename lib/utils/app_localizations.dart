@@ -18,8 +18,8 @@ class AppLocalizations {
   static final Map<String, Map<String, String>> _localizedValues = {
     'en': {
       // General
-      'app_name': 'Anish Library',
-      'welcome': 'Welcome to Anish Library',
+      'app_name': 'BCA Library',
+      'welcome': 'Welcome to BCA Library',
       'home': 'Home',
       'profile': 'Profile',
       'settings': 'Settings',
@@ -58,12 +58,10 @@ class AppLocalizations {
 
       // Placeholders
       'welcome_message':
-          'Welcome to Anish Library! Access all educational resources in one place.',
-      'youtube_description':
-          'Watch educational videos and tutorials from our channel.',
-      'search_description':
-          'Find notes, PDFs, and courses by searching our database.',
-      'favorites_description': 'Access your bookmarked resources quickly.',
+          'Welcome to BCA Library! Access all educational resources in one place.',
+      'youtube_description': 'Watch educational videos on various subjects.',
+      'search_description': 'Find specific study materials quickly.',
+      'favorites_description': 'Access your saved study materials.',
       'coming_soon': 'Coming Soon',
 
       // BCA Semester

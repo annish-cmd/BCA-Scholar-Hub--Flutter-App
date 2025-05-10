@@ -231,13 +231,17 @@ class AboutPage extends StatelessWidget {
                 ),
                 SizedBox(height: 25),
                 Center(
-                  child: Text(
-                    '© 2025 Anish Library. All rights reserved.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isDarkMode ? Colors.white70 : Colors.white70,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '© 2025 BCA Library. All rights reserved.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: textColor.withOpacity(0.7),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 SizedBox(height: 10),

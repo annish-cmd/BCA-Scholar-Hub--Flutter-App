@@ -54,7 +54,7 @@ class TermsOfServicePage extends StatelessWidget {
               _buildSection(
                 context,
                 'Agreement to Terms',
-                'By accessing or using the Anish Library application, you agree to be bound by these Terms of Service and all applicable laws and regulations. If you do not agree with any of these terms, you are prohibited from using or accessing this app.',
+                'By accessing or using the BCA Library application, you agree to be bound by these Terms of Service and all applicable laws and regulations. If you do not agree with any of these terms, you are prohibited from using or accessing this app.',
                 isDarkMode,
                 cardColor,
                 textColor,
@@ -86,15 +86,15 @@ class TermsOfServicePage extends StatelessWidget {
               _buildSection(
                 context,
                 'Limitations',
-                'In no event shall Anish Library or its suppliers be liable for any damages (including, without limitation, damages for loss of data or profit, or due to business interruption) arising out of the use or inability to use the materials on the app, even if Anish Library or an authorized representative has been notified orally or in writing of the possibility of such damage.',
+                'In no event shall BCA Library or its suppliers be liable for any damages (including, without limitation, damages for loss of data or profit, or due to business interruption) arising out of the use or inability to use the materials on the app, even if BCA Library or an authorized representative has been notified orally or in writing of the possibility of such damage.',
                 isDarkMode,
                 cardColor,
                 textColor,
               ),
               _buildSection(
                 context,
-                'Modifications',
-                'Anish Library may revise these terms of service for its app at any time without notice. By using this app you are agreeing to be bound by the then current version of these terms of service.',
+                'Revisions and Errata',
+                'BCA Library may revise these terms of service for its app at any time without notice. By using this app you are agreeing to be bound by the then current version of these terms of service.',
                 isDarkMode,
                 cardColor,
                 textColor,

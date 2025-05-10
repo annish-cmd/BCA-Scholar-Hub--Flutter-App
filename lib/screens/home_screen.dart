@@ -5,17 +5,47 @@ import '../utils/theme_provider.dart';
 import '../utils/app_localizations.dart';
 import '../utils/url_launcher_utils.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final int currentIndex;
   final List<Widget> pages;
   final Function(int) onIndexChanged;
 
   const HomeScreen({
-    Key? key,
+    super.key,
     required this.currentIndex,
     required this.pages,
     required this.onIndexChanged,
-  }) : super(key: key);
+  });
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.currentIndex;
+  }
+
+  void _handleIndexChanged(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+    widget.onIndexChanged(index);
+  }
+
+  @override
+  void didUpdateWidget(HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentIndex != widget.currentIndex) {
+      setState(() {
+        _currentIndex = widget.currentIndex;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +60,7 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Anish Library',
+          'BCA Library',
           style: TextStyle(
             fontFamily: 'Bauhaus 93',
             color: Colors.white,
@@ -74,9 +104,9 @@ class HomeScreen extends StatelessWidget {
       drawer: _buildDrawer(context, isDarkMode, textColor),
       body: Column(
         children: [
-          if (currentIndex == 0 || (currentIndex >= 5 && currentIndex <= 12))
+          if (_currentIndex == 0 || (_currentIndex >= 5 && _currentIndex <= 12))
             _buildSemesterButtons(isDarkMode, localizations),
-          Expanded(child: pages[currentIndex]),
+          Expanded(child: widget.pages[_currentIndex]),
         ],
       ),
       bottomNavigationBar: CurvedNavigationBar(
@@ -92,10 +122,10 @@ class HomeScreen extends StatelessWidget {
         backgroundColor: Colors.transparent,
         animationCurve: Curves.easeInOut,
         animationDuration: const Duration(milliseconds: 300),
-        onTap: onIndexChanged,
+        onTap: _handleIndexChanged,
         index:
-            currentIndex < 5
-                ? currentIndex
+            _currentIndex < 5
+                ? _currentIndex
                 : 0, // Ensure proper tab highlighting
       ),
     );
@@ -141,7 +171,7 @@ class HomeScreen extends StatelessWidget {
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'Anish Library',
+                  'BCA Library',
                   style: TextStyle(
                     fontFamily: 'Bauhaus 93',
                     fontSize: 34,
@@ -157,7 +187,7 @@ class HomeScreen extends StatelessWidget {
               onTap: () {
                 // Close the drawer first
                 Navigator.pop(context);
-                // Launch Anish's website
+                // Launch website
                 UrlLauncherUtils.launchUrlWithErrorHandling(
                   context,
                   'https://www.anishchauhan.com.np/',
@@ -212,7 +242,7 @@ class HomeScreen extends StatelessWidget {
               title: Text('BCA Semester I', style: textStyle),
               leading: Icon(Icons.book, color: Colors.white),
               onTap: () {
-                onIndexChanged(5);
+                _handleIndexChanged(5);
                 Navigator.pop(context);
               },
             ),
@@ -220,7 +250,7 @@ class HomeScreen extends StatelessWidget {
               title: Text('BCA Semester II', style: textStyle),
               leading: Icon(Icons.book, color: Colors.white),
               onTap: () {
-                onIndexChanged(6);
+                _handleIndexChanged(6);
                 Navigator.pop(context);
               },
             ),
@@ -228,7 +258,7 @@ class HomeScreen extends StatelessWidget {
               title: Text('BCA Semester III', style: textStyle),
               leading: Icon(Icons.book, color: Colors.white),
               onTap: () {
-                onIndexChanged(7);
+                _handleIndexChanged(7);
                 Navigator.pop(context);
               },
             ),
@@ -236,7 +266,7 @@ class HomeScreen extends StatelessWidget {
               title: Text('BCA Semester IV', style: textStyle),
               leading: Icon(Icons.book, color: Colors.white),
               onTap: () {
-                onIndexChanged(8);
+                _handleIndexChanged(8);
                 Navigator.pop(context);
               },
             ),
@@ -244,7 +274,7 @@ class HomeScreen extends StatelessWidget {
               title: Text('BCA Semester V', style: textStyle),
               leading: Icon(Icons.book, color: Colors.white),
               onTap: () {
-                onIndexChanged(9);
+                _handleIndexChanged(9);
                 Navigator.pop(context);
               },
             ),
@@ -252,7 +282,7 @@ class HomeScreen extends StatelessWidget {
               title: Text('BCA Semester VI', style: textStyle),
               leading: Icon(Icons.book, color: Colors.white),
               onTap: () {
-                onIndexChanged(10);
+                _handleIndexChanged(10);
                 Navigator.pop(context);
               },
             ),
@@ -260,7 +290,7 @@ class HomeScreen extends StatelessWidget {
               title: Text('BCA Semester VII', style: textStyle),
               leading: Icon(Icons.book, color: Colors.white),
               onTap: () {
-                onIndexChanged(11);
+                _handleIndexChanged(11);
                 Navigator.pop(context);
               },
             ),
@@ -268,7 +298,7 @@ class HomeScreen extends StatelessWidget {
               title: Text('BCA Semester VIII', style: textStyle),
               leading: Icon(Icons.book, color: Colors.white),
               onTap: () {
-                onIndexChanged(12);
+                _handleIndexChanged(12);
                 Navigator.pop(context);
               },
             ),
@@ -314,7 +344,7 @@ class HomeScreen extends StatelessWidget {
                   elevation: 3,
                 ),
                 onPressed: () {
-                  onIndexChanged(index + 5);
+                  _handleIndexChanged(index + 5);
                 },
                 child: Text(
                   '${localizations.translate('semester')} ${index + 1}',
@@ -323,7 +353,7 @@ class HomeScreen extends StatelessWidget {
                     color:
                         isDarkMode
                             ? Colors.white
-                            : (index + 5 == currentIndex
+                            : (index + 5 == _currentIndex
                                 ? Colors.blue
                                 : Colors.black87),
                   ),
