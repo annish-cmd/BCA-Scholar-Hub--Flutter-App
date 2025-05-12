@@ -1,43 +1,58 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'screens/home_screen.dart';
 import 'screens/profile_page.dart';
 import 'screens/bca_semester_page.dart';
 import 'screens/splash_screen.dart';
+import 'screens/home_content_screen.dart';
+import 'screens/youtube_screen.dart';
+import 'screens/search_screen.dart';
+import 'screens/favorites_screen.dart';
+import 'screens/extra_courses_screen.dart';
 import 'utils/theme_provider.dart';
 import 'utils/language_provider.dart';
 import 'utils/app_localizations.dart';
 
-// Global key to access MyApp state
-final GlobalKey<_MyAppState> myAppKey = GlobalKey<_MyAppState>();
+// Add services import
+import 'package:flutter/services.dart';
+
+// Global key for app state access
+final GlobalKey<MyAppState> myAppKey = GlobalKey<MyAppState>();
 
 void main() {
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        ChangeNotifierProvider(create: (_) => LanguageProvider()),
-      ],
-      child: MyApp(key: myAppKey),
-    ),
-  );
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Allow both portrait and landscape orientations
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]).then((_) {
+    runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ThemeProvider()),
+          ChangeNotifierProvider(create: (_) => LanguageProvider()),
+        ],
+        child: MyApp(key: myAppKey),
+      ),
+    );
+  });
 }
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  State<MyApp> createState() => MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
-  int _currentIndex = 0;
-
+class MyAppState extends State<MyApp> {
+  // Public method to allow updating navigation index if needed
   void updateIndex(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
+    // This method is kept for compatibility with other parts of the app
+    // that might use it through the global key
   }
 
   @override
@@ -48,29 +63,13 @@ class _MyAppState extends State<MyApp> {
     // Create styled placeholder pages
     final List<Widget> pages = [
       // Home Page
-      const PlaceholderPage(
-        icon: Icons.home,
-        titleKey: 'home',
-        descriptionKey: 'welcome_message',
-      ),
+      const HomeContentScreen(),
       // YouTube Page
-      const PlaceholderPage(
-        icon: Icons.play_circle_fill,
-        titleKey: 'youtube',
-        descriptionKey: 'youtube_description',
-      ),
+      const YouTubeScreen(),
       // Search Page
-      const PlaceholderPage(
-        icon: Icons.search,
-        titleKey: 'search',
-        descriptionKey: 'search_description',
-      ),
+      const SearchScreen(),
       // Favorites Page
-      const PlaceholderPage(
-        icon: Icons.favorite,
-        titleKey: 'favorites',
-        descriptionKey: 'favorites_description',
-      ),
+      const FavoritesScreen(),
       const ProfilePage(), // Updated Profile Page
       const BcaSemesterPage(semester: 1, notes: 'Notes for BCA 1st Semester'),
       const BcaSemesterPage(semester: 2, notes: 'Notes for BCA 2nd Semester'),
@@ -80,20 +79,11 @@ class _MyAppState extends State<MyApp> {
       const BcaSemesterPage(semester: 6, notes: 'Notes for BCA 6th Semester'),
       const BcaSemesterPage(semester: 7, notes: 'Notes for BCA 7th Semester'),
       const BcaSemesterPage(semester: 8, notes: 'Notes for BCA 8th Semester'),
+      const ExtraCoursesScreen(),
     ];
 
-    // Determine which screen to show
-    Widget homeWidget;
-    if (false) {
-      // Disabled direct home screen for now, always start with splash
-      homeWidget = HomeScreen(
-        currentIndex: _currentIndex,
-        pages: pages,
-        onIndexChanged: updateIndex,
-      );
-    } else {
-      homeWidget = SplashScreen(pages: pages);
-    }
+    // Create the home widget (always use splash screen)
+    Widget homeWidget = SplashScreen(pages: pages);
 
     return MaterialApp(
       title: 'BCA Library',
@@ -169,55 +159,63 @@ class PlaceholderPage extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
       ),
-      child: Center(
-        child: Card(
-          elevation: 5,
-          color: isDarkMode ? const Color(0xFF1F1F1F) : Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          margin: const EdgeInsets.all(16),
+      child: SingleChildScrollView(
+        child: Center(
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 80, color: Colors.blue),
-                const SizedBox(height: 24),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  description,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
+            padding: const EdgeInsets.symmetric(vertical: 24.0),
+            child: Card(
+              elevation: 5,
+              color: isDarkMode ? const Color(0xFF1F1F1F) : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              margin: const EdgeInsets.all(16),
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 80, color: Colors.blue),
+                    const SizedBox(height: 24),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
                     ),
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
+                    const SizedBox(height: 16),
+                    Text(
+                      description,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                      ),
                     ),
-                  ),
-                  onPressed: () {},
-                  child: Text(comingSoon, style: const TextStyle(fontSize: 16)),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                      onPressed: () {},
+                      child: Text(
+                        comingSoon,
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),

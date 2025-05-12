@@ -17,13 +17,13 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _opacityAnimation;
-  late Animation<double> _rotateAnimation;
+  late final AnimationController _animationController;
+  late final Animation<double> _scaleAnimation;
+  late final Animation<double> _rotateAnimation;
+  late final Animation<double> _opacityAnimation;
+  final int _currentIndex = 0;
   bool _showText = false;
   bool _startTextAnimation = false;
-  int _currentIndex = 0;
 
   @override
   void initState() {
@@ -160,8 +160,8 @@ class _SplashScreenState extends State<SplashScreen>
                               BoxShadow(
                                 color:
                                     isDarkMode
-                                        ? Colors.blue.withOpacity(0.2)
-                                        : Colors.blue.withOpacity(0.4),
+                                        ? Colors.blue.withAlpha(51)
+                                        : Colors.blue.withAlpha(102),
                                 blurRadius: 20,
                                 spreadRadius: 5,
                               ),
@@ -248,14 +248,14 @@ class _SplashScreenState extends State<SplashScreen>
                           decoration: BoxDecoration(
                             color:
                                 isDarkMode
-                                    ? Colors.grey.shade900.withOpacity(0.5)
-                                    : Colors.white.withOpacity(0.3),
+                                    ? Colors.grey.shade900.withAlpha(128)
+                                    : Colors.white.withAlpha(77),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
                               color:
                                   isDarkMode
-                                      ? Colors.blue.withOpacity(0.3)
-                                      : Colors.blue.withOpacity(0.2),
+                                      ? Colors.blue.withAlpha(77)
+                                      : Colors.blue.withAlpha(51),
                               width: 1,
                             ),
                           ),

@@ -238,7 +238,7 @@ class AboutPage extends StatelessWidget {
                         '© 2025 BCA Library. All rights reserved.',
                         style: TextStyle(
                           fontSize: 12,
-                          color: textColor.withOpacity(0.7),
+                          color: textColor.withAlpha(179),
                         ),
                       ),
                     ],

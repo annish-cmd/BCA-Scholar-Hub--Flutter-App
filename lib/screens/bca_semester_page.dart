@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme_provider.dart';
 import '../utils/app_localizations.dart';
+import '../models/bca_subjects.dart';
+import '../models/pdf_note.dart';
+import 'pdf_viewer_screen.dart';
 
 class BcaSemesterPage extends StatelessWidget {
   final int semester;
@@ -26,6 +29,10 @@ class BcaSemesterPage extends StatelessWidget {
 
     // Get localizations
     final localizations = AppLocalizations.of(context);
+
+    // Get subjects for this semester
+    final List<String> semesterSubjects =
+        BcaSubjectsData.subjectsBySemester[semester] ?? [];
 
     return Container(
       decoration: BoxDecoration(
@@ -95,15 +102,16 @@ class BcaSemesterPage extends StatelessWidget {
                 ),
                 child: ListView.builder(
                   padding: const EdgeInsets.all(8),
-                  itemCount: 10, // Placeholder count, replace with actual data
+                  itemCount: semesterSubjects.length,
                   itemBuilder: (context, index) {
+                    final subject = semesterSubjects[index];
                     return ListTile(
                       leading: CircleAvatar(
                         backgroundColor: Colors.blue[100],
                         child: Icon(Icons.book, color: Colors.blue),
                       ),
                       title: Text(
-                        '${localizations.translate('subject')} ${index + 1}',
+                        subject,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: textColor,
@@ -121,7 +129,23 @@ class BcaSemesterPage extends StatelessWidget {
                         color: isDarkMode ? Colors.blue[300] : Colors.blue,
                       ),
                       onTap: () {
-                        // Handle subject tap
+                        // Open PDF for the subject (using test.pdf for now)
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (context) => PdfViewerScreen(
+                                  pdfNote: PdfNote(
+                                    title: subject,
+                                    subject: 'Semester $semester',
+                                    description: 'Notes for $subject',
+                                    filename: 'test.pdf',
+                                    thumbnailImage:
+                                        'c.jpg', // Default thumbnail
+                                  ),
+                                ),
+                          ),
+                        );
                       },
                     );
                   },

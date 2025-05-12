@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../utils/theme_provider.dart';
 import '../utils/app_localizations.dart';
 import '../utils/url_launcher_utils.dart';
+import '../widgets/search_app_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   final int currentIndex;
@@ -23,6 +24,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late int _currentIndex;
+  bool _isSearching = false;
 
   @override
   void initState() {
@@ -35,6 +37,12 @@ class _HomeScreenState extends State<HomeScreen> {
       _currentIndex = index;
     });
     widget.onIndexChanged(index);
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _isSearching = !_isSearching;
+    });
   }
 
   @override
@@ -58,53 +66,54 @@ class _HomeScreenState extends State<HomeScreen> {
     final iconColor = isDarkMode ? Colors.white : Colors.blue[700];
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'BCA Library',
-          style: TextStyle(
-            fontFamily: 'Bauhaus 93',
-            color: Colors.white,
-            fontSize: 24,
-            shadows: [
-              Shadow(
-                color: Colors.black.withAlpha(128),
-                offset: Offset(1, 1),
-                blurRadius: 3,
+      appBar:
+          _isSearching
+              ? SearchAppBar(onClose: _toggleSearch, isDarkMode: isDarkMode)
+              : AppBar(
+                title: Text(
+                  'BCA Library',
+                  style: TextStyle(
+                    fontFamily: 'Bauhaus 93',
+                    color: Colors.white,
+                    fontSize: 24,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withAlpha(128),
+                        offset: Offset(1, 1),
+                        blurRadius: 3,
+                      ),
+                    ],
+                  ),
+                ),
+                iconTheme: const IconThemeData(color: Colors.white),
+                elevation: 3,
+                flexibleSpace: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.blue, Colors.purple],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                ),
+                titleSpacing: 0,
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.search),
+                    onPressed: _toggleSearch,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.notifications),
+                    onPressed: () {
+                      // Add notification functionality here
+                    },
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-        iconTheme: const IconThemeData(color: Colors.white),
-        elevation: 3,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.blue, Colors.purple],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        titleSpacing: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              // Add search functionality here
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications),
-            onPressed: () {
-              // Add notification functionality here
-            },
-          ),
-        ],
-      ),
       drawer: _buildDrawer(context, isDarkMode, textColor),
       body: Column(
         children: [
-          if (_currentIndex == 0 || (_currentIndex >= 5 && _currentIndex <= 12))
+          if (_currentIndex == 0 || (_currentIndex >= 5 && _currentIndex <= 13))
             _buildSemesterButtons(isDarkMode, localizations),
           Expanded(child: widget.pages[_currentIndex]),
         ],
@@ -122,7 +131,26 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.transparent,
         animationCurve: Curves.easeInOut,
         animationDuration: const Duration(milliseconds: 300),
-        onTap: _handleIndexChanged,
+        onTap: (index) {
+          // If user taps on the search icon in bottom nav
+          if (index == 2) {
+            // If not already on search page, go to search page
+            _handleIndexChanged(index);
+            // If user is already on search page, toggle search bar
+            if (_currentIndex == 2) {
+              _toggleSearch();
+            }
+          } else {
+            // For other icons, just navigate normally
+            _handleIndexChanged(index);
+            // Close search if active
+            if (_isSearching) {
+              setState(() {
+                _isSearching = false;
+              });
+            }
+          }
+        },
         index:
             _currentIndex < 5
                 ? _currentIndex
@@ -302,6 +330,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.pop(context);
               },
             ),
+            ListTile(
+              title: Text('Extra Courses', style: textStyle),
+              leading: Icon(Icons.star, color: Colors.white),
+              onTap: () {
+                _handleIndexChanged(13);
+                Navigator.pop(context);
+              },
+            ),
           ],
         ),
       ),
@@ -314,6 +350,8 @@ class _HomeScreenState extends State<HomeScreen> {
   ) {
     final buttonColor = isDarkMode ? const Color(0xFF2D2D2D) : Colors.white;
     final textColor = isDarkMode ? Colors.white : Colors.black;
+    final extraCourseColor =
+        isDarkMode ? Colors.purple[800] : Colors.purple[100];
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
@@ -330,37 +368,73 @@ class _HomeScreenState extends State<HomeScreen> {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
-          children: List.generate(
-            8,
-            (index) => Padding(
+          children: [
+            ...List.generate(
+              8,
+              (index) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: textColor,
+                    backgroundColor: buttonColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    elevation: 3,
+                  ),
+                  onPressed: () {
+                    _handleIndexChanged(index + 5);
+                  },
+                  child: Text(
+                    '${localizations.translate('semester')} ${index + 1}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color:
+                          isDarkMode
+                              ? Colors.white
+                              : (index + 5 == _currentIndex
+                                  ? Colors.blue
+                                  : Colors.black87),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Extra Courses button
+            Padding(
               padding: const EdgeInsets.symmetric(horizontal: 5),
-              child: ElevatedButton(
+              child: ElevatedButton.icon(
+                icon: Icon(
+                  Icons.star,
+                  size: 18,
+                  color: isDarkMode ? Colors.white : Colors.purple[800],
+                ),
+                label: Text(
+                  'Extra Courses',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color:
+                        isDarkMode
+                            ? Colors.white
+                            : (_currentIndex == 13
+                                ? Colors.purple
+                                : Colors.black87),
+                  ),
+                ),
                 style: ElevatedButton.styleFrom(
                   foregroundColor: textColor,
-                  backgroundColor: buttonColor,
+                  backgroundColor: extraCourseColor,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
                   elevation: 3,
                 ),
                 onPressed: () {
-                  _handleIndexChanged(index + 5);
+                  _handleIndexChanged(13);
                 },
-                child: Text(
-                  '${localizations.translate('semester')} ${index + 1}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color:
-                        isDarkMode
-                            ? Colors.white
-                            : (index + 5 == _currentIndex
-                                ? Colors.blue
-                                : Colors.black87),
-                  ),
-                ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );

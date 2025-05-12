@@ -32,6 +32,10 @@ class AppLocalizations {
       'notes': 'Notes',
       'resources': 'Resources',
 
+      // Search
+      'search_hint': 'Search subjects...',
+      'no_results_found': 'No results found',
+
       // Settings
       'dark_mode': 'Dark Mode',
       'theme_description': 'Switch between light and dark theme',
@@ -104,6 +108,10 @@ class AppLocalizations {
       'semester': 'सेमेस्टर',
       'notes': 'नोटहरू',
       'resources': 'संसाधनहरू',
+
+      // Search
+      'search_hint': 'विषयहरू खोज्नुहोस्...',
+      'no_results_found': 'कुनै परिणाम फेला परेन',
 
       // Settings
       'dark_mode': 'डार्क मोड',
@@ -181,6 +189,10 @@ class AppLocalizations {
       'semester': 'सेमेस्टर',
       'notes': 'नोट्स',
       'resources': 'संसाधन',
+
+      // Search
+      'search_hint': 'विषय खोजें...',
+      'no_results_found': 'कोई परिणाम नहीं मिला',
 
       // Settings
       'dark_mode': 'डार्क मोड',
