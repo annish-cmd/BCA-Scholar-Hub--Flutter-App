@@ -100,7 +100,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 actions: [
                   IconButton(
                     icon: const Icon(Icons.search),
-                    onPressed: _toggleSearch,
+                    tooltip: 'Search',
+                    onPressed: () {
+                      // Navigate directly to search screen (index 2)
+                      _handleIndexChanged(2);
+                    },
                   ),
                   IconButton(
                     icon: const Icon(Icons.notifications),
@@ -134,12 +138,9 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: (index) {
           // If user taps on the search icon in bottom nav
           if (index == 2) {
-            // If not already on search page, go to search page
+            // Always navigate to search page
             _handleIndexChanged(index);
-            // If user is already on search page, toggle search bar
-            if (_currentIndex == 2) {
-              _toggleSearch();
-            }
+            // Don't toggle search UI when already on search page
           } else {
             // For other icons, just navigate normally
             _handleIndexChanged(index);

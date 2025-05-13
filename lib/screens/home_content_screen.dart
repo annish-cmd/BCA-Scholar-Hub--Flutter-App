@@ -4,18 +4,52 @@ import '../utils/theme_provider.dart';
 import '../utils/app_localizations.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 import '../models/pdf_note.dart';
-import 'pdf_viewer_screen.dart';
+import 'pdf_options_screen.dart';
 
 class HomeContentScreen extends StatefulWidget {
   const HomeContentScreen({super.key});
+
+  // Static list of PDF notes accessible throughout the app
+  static final List<PdfNote> pdfNotes = [
+    PdfNote(
+      id: 'c_programming_notes',
+      title: 'C Programming Notes',
+      subject: 'Programming',
+      description: 'Complete guide to C programming fundamentals',
+      filename: 'test.pdf',
+      thumbnailImage: 'c.jpg',
+    ),
+    PdfNote(
+      id: 'java_basics',
+      title: 'Java Basics',
+      subject: 'Programming',
+      description: 'Core concepts of Java programming',
+      filename: 'test.pdf',
+      thumbnailImage: 'java.jpg',
+    ),
+    PdfNote(
+      id: 'flutter_tutorial',
+      title: 'Flutter Tutorial',
+      subject: 'Mobile Development',
+      description: 'Step by step Flutter development guide',
+      filename: 'test.pdf',
+      thumbnailImage: 'flutter.png',
+    ),
+    PdfNote(
+      id: 'python_for_beginners',
+      title: 'Python for Beginners',
+      subject: 'Programming',
+      description: 'Learn Python from scratch',
+      filename: 'test.pdf',
+      thumbnailImage: 'Python.jpg',
+    ),
+  ];
 
   @override
   State<HomeContentScreen> createState() => _HomeContentScreenState();
 }
 
 class _HomeContentScreenState extends State<HomeContentScreen> {
-  int _currentSlide = 0;
-
   // List of image data with captions
   final List<Map<String, String>> _imageData = [
     {
@@ -55,37 +89,10 @@ class _HomeContentScreenState extends State<HomeContentScreen> {
     },
   ];
 
-  // List of PDF notes
-  final List<PdfNote> _pdfNotes = [
-    PdfNote(
-      title: 'C Programming Notes',
-      subject: 'Programming',
-      description: 'Complete guide to C programming fundamentals',
-      filename: 'test.pdf',
-      thumbnailImage: 'c.jpg',
-    ),
-    PdfNote(
-      title: 'Java Basics',
-      subject: 'Programming',
-      description: 'Core concepts of Java programming',
-      filename: 'test.pdf',
-      thumbnailImage: 'java.jpg',
-    ),
-    PdfNote(
-      title: 'Flutter Tutorial',
-      subject: 'Mobile Development',
-      description: 'Step by step Flutter development guide',
-      filename: 'test.pdf',
-      thumbnailImage: 'flutter.png',
-    ),
-    PdfNote(
-      title: 'Python for Beginners',
-      subject: 'Programming',
-      description: 'Learn Python from scratch',
-      filename: 'test.pdf',
-      thumbnailImage: 'Python.jpg',
-    ),
-  ];
+  // Expose the PDF notes for other screens to use
+  List<PdfNote> getPdfNotes() {
+    return HomeContentScreen.pdfNotes;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,9 +102,6 @@ class _HomeContentScreenState extends State<HomeContentScreen> {
 
     // Get translations
     final localizations = AppLocalizations.of(context);
-    final title = localizations.translate('home');
-    final description = localizations.translate('welcome_message');
-    final comingSoon = localizations.translate('coming_soon');
 
     return Container(
       decoration: BoxDecoration(
@@ -118,11 +122,11 @@ class _HomeContentScreenState extends State<HomeContentScreen> {
               margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               decoration: BoxDecoration(
                 color:
-                    isDarkMode ? Colors.black26 : Colors.white.withOpacity(0.7),
+                    isDarkMode ? Colors.black26 : Colors.white.withAlpha(179),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withAlpha(26),
                     blurRadius: 10,
                     spreadRadius: 1,
                   ),
@@ -140,7 +144,7 @@ class _HomeContentScreenState extends State<HomeContentScreen> {
                       color:
                           isDarkMode
                               ? Colors.black38
-                              : Colors.blue.withOpacity(0.1),
+                              : Colors.blue.withAlpha(26),
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(12),
                         topRight: Radius.circular(12),
@@ -173,7 +177,7 @@ class _HomeContentScreenState extends State<HomeContentScreen> {
                                       borderRadius: BorderRadius.circular(10),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.2),
+                                          color: Colors.black.withAlpha(51),
                                           spreadRadius: 1,
                                           blurRadius: 3,
                                           offset: const Offset(0, 2),
@@ -198,17 +202,15 @@ class _HomeContentScreenState extends State<HomeContentScreen> {
                           enableInfiniteScroll: true,
                           reverse: false,
                           autoPlay: true,
-                          autoPlayInterval: const Duration(seconds: 3),
+                          autoPlayInterval: const Duration(seconds: 2),
                           autoPlayAnimationDuration: const Duration(
-                            milliseconds: 800,
+                            milliseconds: 500,
                           ),
-                          autoPlayCurve: Curves.fastOutSlowIn,
+                          autoPlayCurve: Curves.easeInOut,
                           enlargeCenterPage: true,
                           enlargeStrategy: CenterPageEnlargeStrategy.height,
                           onPageChanged: (index, reason) {
-                            setState(() {
-                              _currentSlide = index;
-                            });
+                            // No need to track current slide index
                           },
                           scrollDirection: Axis.horizontal,
                           showIndicator: false,
@@ -225,11 +227,11 @@ class _HomeContentScreenState extends State<HomeContentScreen> {
               margin: const EdgeInsets.fromLTRB(16, 16, 16, 16),
               decoration: BoxDecoration(
                 color:
-                    isDarkMode ? Colors.black26 : Colors.white.withOpacity(0.7),
+                    isDarkMode ? Colors.black26 : Colors.white.withAlpha(179),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withAlpha(26),
                     blurRadius: 10,
                     spreadRadius: 1,
                   ),
@@ -247,14 +249,14 @@ class _HomeContentScreenState extends State<HomeContentScreen> {
                       color:
                           isDarkMode
                               ? Colors.black38
-                              : Colors.blue.withOpacity(0.1),
+                              : Colors.blue.withAlpha(26),
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(12),
                         topRight: Radius.circular(12),
                       ),
                     ),
                     child: Text(
-                      'Popular Notes',
+                      localizations.translate('Popular Notes'),
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -267,9 +269,9 @@ class _HomeContentScreenState extends State<HomeContentScreen> {
                     child: ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _pdfNotes.length,
+                      itemCount: HomeContentScreen.pdfNotes.length,
                       itemBuilder: (context, index) {
-                        final note = _pdfNotes[index];
+                        final note = HomeContentScreen.pdfNotes[index];
                         return Card(
                           margin: const EdgeInsets.only(bottom: 10),
                           elevation: 2,
@@ -284,7 +286,7 @@ class _HomeContentScreenState extends State<HomeContentScreen> {
                                 MaterialPageRoute(
                                   builder:
                                       (context) =>
-                                          PdfViewerScreen(pdfNote: note),
+                                          PdfOptionsScreen(pdfNote: note),
                                 ),
                               );
                             },

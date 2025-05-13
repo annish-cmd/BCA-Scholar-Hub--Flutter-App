@@ -54,7 +54,6 @@ class _SearchScreenState extends State<SearchScreen> {
 
     // Get translations
     final localizations = AppLocalizations.of(context);
-    final title = localizations.translate('search');
 
     return Container(
       decoration: BoxDecoration(
@@ -71,7 +70,7 @@ class _SearchScreenState extends State<SearchScreen> {
         children: [
           // Search bar
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
             child: Card(
               elevation: 3,
               shape: RoundedRectangleBorder(
@@ -84,9 +83,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   controller: _searchController,
                   style: TextStyle(color: textColor),
                   decoration: InputDecoration(
-                    hintText:
-                        localizations.translate('search_hint') ??
-                        'Search subjects...',
+                    hintText: localizations.translate('search_hint'),
                     hintStyle: TextStyle(
                       color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
                     ),
@@ -117,6 +114,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   onChanged: _performSearch,
+                  autofocus: true,
                 ),
               ),
             ),
@@ -142,10 +140,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
-                                    localizations.translate(
-                                          'no_results_found',
-                                        ) ??
-                                        'No results found',
+                                    localizations.translate('no_results_found'),
                                     style: TextStyle(
                                       fontSize: 18,
                                       color:
@@ -169,8 +164,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
-                                    localizations.translate('search_hint') ??
-                                        'Search subjects...',
+                                    localizations.translate('search_hint'),
                                     style: TextStyle(
                                       fontSize: 18,
                                       color:
@@ -245,7 +239,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                 MaterialPageRoute(
                                   builder:
                                       (context) => PdfViewerScreen(
-                                        pdfNote: PdfNote(
+                                        pdfNote: PdfNote.fromLegacy(
                                           title: result.subject,
                                           subject:
                                               'Semester ${result.semester}',

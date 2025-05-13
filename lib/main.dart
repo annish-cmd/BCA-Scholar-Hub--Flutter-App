@@ -12,6 +12,7 @@ import 'screens/extra_courses_screen.dart';
 import 'utils/theme_provider.dart';
 import 'utils/language_provider.dart';
 import 'utils/app_localizations.dart';
+import 'utils/favorites_provider.dart';
 
 // Add services import
 import 'package:flutter/services.dart';
@@ -34,6 +35,7 @@ void main() {
         providers: [
           ChangeNotifierProvider(create: (_) => ThemeProvider()),
           ChangeNotifierProvider(create: (_) => LanguageProvider()),
+          ChangeNotifierProvider(create: (_) => FavoritesProvider()),
         ],
         child: MyApp(key: myAppKey),
       ),

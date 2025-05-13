@@ -133,9 +133,11 @@ class ExtraCoursesScreen extends StatelessWidget {
                           MaterialPageRoute(
                             builder:
                                 (context) => PdfViewerScreen(
-                                  pdfNote: PdfNote(
+                                  pdfNote: PdfNote.fromLegacy(
                                     title: course['title'],
-                                    subject: 'Extra Course',
+                                    subject: localizations.translate(
+                                      'extra_course',
+                                    ),
                                     description: course['description'],
                                     filename:
                                         'test.pdf', // Use your test PDF for now
@@ -152,7 +154,7 @@ class ExtraCoursesScreen extends StatelessWidget {
                           children: [
                             CircleAvatar(
                               radius: 35,
-                              backgroundColor: course['color'].withOpacity(0.2),
+                              backgroundColor: course['color'].withAlpha(51),
                               child: Icon(
                                 course['icon'],
                                 color: course['color'],
@@ -190,7 +192,7 @@ class ExtraCoursesScreen extends StatelessWidget {
                                       vertical: 6,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: course['color'].withOpacity(0.1),
+                                      color: course['color'].withAlpha(26),
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Text(

@@ -16,7 +16,7 @@ dependencies:
   # UI and functionality packages
   cupertino_icons: ^1.0.8
   curved_navigation_bar: ^1.0.6
-  shared_preferences: ^2.2.2
+  shared_preferences: ^2.5.3
   provider: ^6.1.1
   url_launcher: ^6.2.5
   animated_text_kit: ^4.2.2
@@ -25,6 +25,11 @@ dependencies:
   flutter_pdfview: ^1.4.0+1
   syncfusion_flutter_pdfviewer: ^29.1.41
   path_provider: ^2.1.5
+  share_plus: ^7.2.2
+  permission_handler: ^11.2.0
+  app_settings: ^5.1.1
+  device_info_plus: ^11.4.0
+  path: ^1.8.3
 
 dev_dependencies:
   flutter_test:

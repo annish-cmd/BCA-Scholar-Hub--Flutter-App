@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme_provider.dart';
-import '../utils/app_localizations.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 class YouTubeScreen extends StatefulWidget {
@@ -45,22 +44,9 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
     ),
   ];
 
-  // Helper method to extract YouTube video ID from URL
-  static String? extractVideoIdFromUrl(String url) {
-    RegExp regExp = RegExp(
-      r'^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*',
-      caseSensitive: false,
-      multiLine: false,
-    );
-    final match = regExp.firstMatch(url);
-    return (match != null && match.group(7)!.length == 11)
-        ? match.group(7)
-        : null;
-  }
-
   // Example of how to add a video using URL:
   // void addVideo(String url, String title, String subtitle, String timeAgo, String tags) {
-  //   final videoId = extractVideoIdFromUrl(url);
+  //   final videoId = url; // You would parse the ID from the URL here
   //   if (videoId != null) {
   //     setState(() {
   //       _videos.add(YouTubeVideoModel(
@@ -151,7 +137,9 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
         backgroundColor: Colors.transparent,
         appBar: AppBar(
           backgroundColor:
-              isDarkMode ? Colors.black12 : Colors.blue.withOpacity(0.2),
+              isDarkMode
+                  ? Colors.black12
+                  : Colors.blue.withAlpha(51), // 0.2 opacity = alpha 51
           elevation: 0,
           title: Text(
             'Educational Videos',
@@ -198,13 +186,13 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
     int index,
   ) {
     return Card(
-      elevation: 8,
-      shadowColor:
+      color:
           isDarkMode
-              ? Colors.purple.withOpacity(0.3)
-              : Colors.blue.withOpacity(0.3),
-      color: isDarkMode ? const Color(0xFF1F1F1F) : Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              ? Colors.purple.withAlpha(77) // 0.3 opacity = alpha 77
+              : Colors.blue.withAlpha(77), // 0.3 opacity = alpha 77
+      elevation: 4,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -285,7 +273,9 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withAlpha(
+                          51,
+                        ), // 0.2 opacity = alpha 51
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -311,7 +301,9 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                         borderRadius: BorderRadius.circular(4),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withAlpha(
+                              51,
+                            ), // 0.2 opacity = alpha 51
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -446,17 +438,15 @@ class _YoutubePlayerPageState extends State<YoutubePlayerPage>
     final isDarkMode = themeProvider.isDarkMode;
     final textColor = isDarkMode ? Colors.white : Colors.black;
 
-    // Get screen size to handle orientation properly
-    final screenSize = MediaQuery.of(context).size;
-    final isLandscape = screenSize.width > screenSize.height;
-
-    return WillPopScope(
-      onWillPop: () async {
-        if (_isFullScreen) {
-          widget.controller.toggleFullScreenMode();
-          return false;
+    return PopScope(
+      canPop: !_isFullScreen,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+        if (!didPop) {
+          // This means the pop was intercepted due to canPop being false
+          if (_isFullScreen) {
+            widget.controller.toggleFullScreenMode();
+          }
         }
-        return true;
       },
       child: Scaffold(
         backgroundColor: isDarkMode ? const Color(0xFF121212) : Colors.white,

@@ -10,10 +10,10 @@ class SearchAppBar extends StatefulWidget implements PreferredSizeWidget {
   final bool isDarkMode;
 
   const SearchAppBar({
-    Key? key,
+    super.key,
     required this.onClose,
     required this.isDarkMode,
-  }) : super(key: key);
+  });
 
   @override
   State<SearchAppBar> createState() => _SearchAppBarState();
@@ -25,7 +25,6 @@ class SearchAppBar extends StatefulWidget implements PreferredSizeWidget {
 class _SearchAppBarState extends State<SearchAppBar> {
   final TextEditingController _searchController = TextEditingController();
   List<SearchResult> _searchResults = [];
-  bool _isSearching = false;
   final FocusNode _focusNode = FocusNode();
   OverlayEntry? _overlayEntry;
 
@@ -56,10 +55,8 @@ class _SearchAppBarState extends State<SearchAppBar> {
     setState(() {
       if (query.isEmpty) {
         _searchResults = [];
-        _isSearching = false;
       } else {
         _searchResults = SearchService.searchSubjects(query);
-        _isSearching = true;
       }
     });
 
@@ -95,8 +92,6 @@ class _SearchAppBarState extends State<SearchAppBar> {
 
     final localizations = AppLocalizations.of(context);
     final textColor = widget.isDarkMode ? Colors.white : Colors.black;
-    final cardColor =
-        widget.isDarkMode ? const Color(0xFF1F1F1F) : Colors.white;
 
     return Positioned(
       top: startPosition,
@@ -111,7 +106,7 @@ class _SearchAppBarState extends State<SearchAppBar> {
             color: widget.isDarkMode ? const Color(0xFF121212) : Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withAlpha(51), // 0.2 opacity = alpha 51
                 blurRadius: 5,
                 spreadRadius: 1,
               ),
@@ -239,7 +234,7 @@ class _SearchAppBarState extends State<SearchAppBar> {
                             MaterialPageRoute(
                               builder:
                                   (context) => PdfViewerScreen(
-                                    pdfNote: PdfNote(
+                                    pdfNote: PdfNote.fromLegacy(
                                       title: result.subject,
                                       subject: 'Semester ${result.semester}',
                                       description:
@@ -261,10 +256,6 @@ class _SearchAppBarState extends State<SearchAppBar> {
 
   @override
   Widget build(BuildContext context) {
-    final textColor = widget.isDarkMode ? Colors.white : Colors.black;
-    final inputColor =
-        widget.isDarkMode ? const Color(0xFF2C2C2C) : Colors.white;
-
     return AppBar(
       leading: IconButton(
         icon: const Icon(Icons.arrow_back),

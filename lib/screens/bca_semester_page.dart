@@ -135,7 +135,7 @@ class BcaSemesterPage extends StatelessWidget {
                           MaterialPageRoute(
                             builder:
                                 (context) => PdfViewerScreen(
-                                  pdfNote: PdfNote(
+                                  pdfNote: PdfNote.fromLegacy(
                                     title: subject,
                                     subject: 'Semester $semester',
                                     description: 'Notes for $subject',
