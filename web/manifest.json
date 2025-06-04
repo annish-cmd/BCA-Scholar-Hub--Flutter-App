@@ -1,11 +1,11 @@
 {
-    "name": "anish_library",
-    "short_name": "anish_library",
+    "name": "BCA Library",
+    "short_name": "BCA Library",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
+    "background_color": "#FFFFFF",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "BCA Library App for students",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
@@ -31,5 +31,13 @@
             "type": "image/png",
             "purpose": "maskable"
         }
-    ]
+    ],
+    "oauth2": {
+        "client_id": "567128132210-vg4g0qqkk9dkh4uj4eeqh3j2ggr4g9aq.apps.googleusercontent.com",
+        "scopes": [
+            "email",
+            "profile",
+            "openid"
+        ]
+    }
 }

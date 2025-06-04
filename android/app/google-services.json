@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "567128132210",
+    "project_id": "bcalibraryapp",
+    "storage_bucket": "bcalibraryapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:567128132210:web:a886d7e5f1738b92a250eb",
+        "android_client_info": {
+          "package_name": "com.example.anish_library"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBcckwIFOXbRTUR6e4ud9jTZDjr1RhnFaQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

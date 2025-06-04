@@ -9,19 +9,31 @@ import 'screens/youtube_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/favorites_screen.dart';
 import 'screens/extra_courses_screen.dart';
+import 'screens/auth/login_screen.dart';
+import 'screens/home_screen.dart';
 import 'utils/theme_provider.dart';
 import 'utils/language_provider.dart';
 import 'utils/app_localizations.dart';
 import 'utils/favorites_provider.dart';
+import 'utils/auth_provider.dart';
 
 // Add services import
 import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'firebase_options.dart';
 
 // Global key for app state access
 final GlobalKey<MyAppState> myAppKey = GlobalKey<MyAppState>();
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Initialize Firebase Analytics but don't store the variable
+  FirebaseAnalytics.instance;
 
   // Allow both portrait and landscape orientations
   SystemChrome.setPreferredOrientations([
@@ -36,6 +48,7 @@ void main() {
           ChangeNotifierProvider(create: (_) => ThemeProvider()),
           ChangeNotifierProvider(create: (_) => LanguageProvider()),
           ChangeNotifierProvider(create: (_) => FavoritesProvider()),
+          ChangeNotifierProvider(create: (_) => AuthProvider()),
         ],
         child: MyApp(key: myAppKey),
       ),
@@ -51,10 +64,17 @@ class MyApp extends StatefulWidget {
 }
 
 class MyAppState extends State<MyApp> {
+  late List<Widget> _pages;
+
   // Public method to allow updating navigation index if needed
   void updateIndex(int index) {
     // This method is kept for compatibility with other parts of the app
     // that might use it through the global key
+  }
+
+  // Method to get the pages list for other parts of the app
+  List<Widget> getPages() {
+    return _pages;
   }
 
   @override
@@ -63,7 +83,7 @@ class MyAppState extends State<MyApp> {
     final languageProvider = Provider.of<LanguageProvider>(context);
 
     // Create styled placeholder pages
-    final List<Widget> pages = [
+    _pages = [
       // Home Page
       const HomeContentScreen(),
       // YouTube Page
@@ -72,7 +92,10 @@ class MyAppState extends State<MyApp> {
       const SearchScreen(),
       // Favorites Page
       const FavoritesScreen(),
-      const ProfilePage(), // Updated Profile Page
+      // Updated Profile Page
+      const ProfilePage(),
+
+      //semester
       const BcaSemesterPage(semester: 1, notes: 'Notes for BCA 1st Semester'),
       const BcaSemesterPage(semester: 2, notes: 'Notes for BCA 2nd Semester'),
       const BcaSemesterPage(semester: 3, notes: 'Notes for BCA 3rd Semester'),
@@ -84,14 +107,16 @@ class MyAppState extends State<MyApp> {
       const ExtraCoursesScreen(),
     ];
 
-    // Create the home widget (always use splash screen)
-    Widget homeWidget = SplashScreen(pages: pages);
+    // Create the home widget based on login status
+    Widget homeWidget;
+    // Always show splash screen when app starts, even for logged-in users
+    homeWidget = SplashScreen(pages: _pages);
 
     return MaterialApp(
       title: 'BCA Library',
       debugShowCheckedModeBanner: false,
 
-      // Localization setup
+      // Localization setup (Languages)
       locale: languageProvider.currentLocale,
       localizationsDelegates: [
         AppLocalizations.delegate,
@@ -105,7 +130,7 @@ class MyAppState extends State<MyApp> {
         Locale('hi', 'IN'), // Hindi
       ],
 
-      // Theme setup
+      // Theme setup (Dark/Leight Mode)
       theme: themeProvider.lightTheme,
       darkTheme: themeProvider.darkTheme,
       themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
@@ -113,7 +138,6 @@ class MyAppState extends State<MyApp> {
       // Apply global text scaling
       builder: (context, child) {
         return MediaQuery(
-          // Override text scaling using the new textScaler instead of deprecated textScaleFactor
           data: MediaQuery.of(context).copyWith(
             textScaler: TextScaler.linear(themeProvider.textScaleFactor),
           ),

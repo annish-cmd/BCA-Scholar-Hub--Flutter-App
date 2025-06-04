@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme_provider.dart';
 import '../utils/app_localizations.dart';
+import '../utils/auth_provider.dart';
+import '../main.dart';
 import 'settings_page.dart';
 import 'about_page.dart';
 import 'help_support_page.dart';
+import 'auth/login_screen.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -12,6 +15,7 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final authProvider = Provider.of<AuthProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
     final textColor = isDarkMode ? Colors.white : Colors.black;
     final cardColor = isDarkMode ? const Color(0xFF1F1F1F) : Colors.white;
@@ -42,20 +46,27 @@ class ProfilePage extends StatelessWidget {
                   child: CircleAvatar(
                     radius: 50,
                     backgroundColor: Colors.white,
-                    child: Text(
-                      'A',
-                      style: TextStyle(
-                        fontSize: 40,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue,
-                      ),
-                    ),
+                    child:
+                        authProvider.isLoggedIn
+                            ? Text(
+                              authProvider.userEmail?.isNotEmpty == true
+                                  ? authProvider.userEmail![0].toUpperCase()
+                                  : 'A',
+                              style: TextStyle(
+                                fontSize: 40,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue,
+                              ),
+                            )
+                            : Icon(Icons.person, size: 50, color: Colors.blue),
                   ),
                 ),
                 const SizedBox(height: 16),
                 Center(
                   child: Text(
-                    'Anish',
+                    authProvider.isLoggedIn
+                        ? (authProvider.userEmail?.split('@').first ?? 'User')
+                        : 'Guest User',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -65,7 +76,9 @@ class ProfilePage extends StatelessWidget {
                 ),
                 Center(
                   child: Text(
-                    'anishlibrary.com',
+                    authProvider.isLoggedIn
+                        ? (authProvider.userEmail ?? '')
+                        : 'Not logged in',
                     style: TextStyle(
                       fontSize: 16,
                       color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
@@ -148,14 +161,39 @@ class ProfilePage extends StatelessWidget {
                           color:
                               isDarkMode ? Colors.grey[800] : Colors.grey[300],
                         ),
-                        ListTile(
-                          leading: Icon(Icons.logout, color: Colors.red),
-                          title: Text(
-                            localizations.translate('logout'),
-                            style: TextStyle(color: Colors.red),
+                        if (authProvider.isLoggedIn)
+                          // Logout option for logged in users
+                          ListTile(
+                            leading: Icon(Icons.logout, color: Colors.red),
+                            title: Text(
+                              localizations.translate('logout'),
+                              style: TextStyle(color: Colors.red),
+                            ),
+                            onTap: () {
+                              _showLogoutConfirmationDialog(context);
+                            },
+                          )
+                        else
+                          // Login option for guests
+                          ListTile(
+                            leading: Icon(Icons.login, color: Colors.green),
+                            title: Text(
+                              'Login',
+                              style: TextStyle(color: Colors.green),
+                            ),
+                            onTap: () {
+                              Navigator.of(context).pushAndRemoveUntil(
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => LoginScreen(
+                                        pages:
+                                            myAppKey.currentState!.getPages(),
+                                      ),
+                                ),
+                                (route) => false,
+                              );
+                            },
                           ),
-                          onTap: () {},
-                        ),
                       ],
                     ),
                   ),
@@ -165,6 +203,58 @@ class ProfilePage extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _showLogoutConfirmationDialog(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(localizations.translate('logout_confirmation')),
+          content: Text(localizations.translate('logout_message')),
+          actions: <Widget>[
+            TextButton(
+              child: Text(localizations.translate('cancel')),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text(
+                localizations.translate('logout'),
+                style: const TextStyle(color: Colors.red),
+              ),
+              onPressed: () async {
+                // Get the auth provider and logout
+                final authProvider = Provider.of<AuthProvider>(
+                  context,
+                  listen: false,
+                );
+                await authProvider.logout();
+
+                // Navigate back to login screen
+                if (context.mounted) {
+                  Navigator.of(context).pop(); // Close dialog
+
+                  // Use the same pages list from main app
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder:
+                          (context) => LoginScreen(
+                            pages: myAppKey.currentState!.getPages(),
+                          ),
+                    ),
+                    (route) => false, // Remove all previous routes
+                  );
+                }
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }

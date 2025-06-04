@@ -91,6 +91,8 @@ class AppLocalizations {
           'Are you sure you want to reset all settings to default?',
       'reset_title': 'Reset Settings',
       'reset_success': 'All settings have been reset',
+      'logout_confirmation': 'Confirm Logout',
+      'logout_message': 'Are you sure you want to logout from your account?',
     },
 
     'ne': {
@@ -172,6 +174,8 @@ class AppLocalizations {
           'के तपाईं सबै सेटिङहरू पूर्वनिर्धारित मा रिसेट गर्न निश्चित हुनुहुन्छ?',
       'reset_title': 'सेटिङहरू रिसेट गर्नुहोस्',
       'reset_success': 'सबै सेटिङहरू रिसेट गरिएको छ',
+      'logout_confirmation': 'लगआउट पुष्टि गर्नुहोस्',
+      'logout_message': 'के तपाईं आफ्नो खाताबाट लगआउट गर्न निश्चित हुनुहुन्छ?',
     },
 
     'hi': {
@@ -252,6 +256,8 @@ class AppLocalizations {
           'क्या आप वाकई सभी सेटिंग्स को डिफ़ॉल्ट पर रीसेट करना चाहते हैं?',
       'reset_title': 'सेटिंग्स रीसेट करें',
       'reset_success': 'सभी सेटिंग्स रीसेट कर दी गई हैं',
+      'logout_confirmation': 'लॉगआउट की पुष्टि करें',
+      'logout_message': 'क्या आप अपने अकाउंट से लॉगआउट करना चाहते हैं?',
     },
   };
 

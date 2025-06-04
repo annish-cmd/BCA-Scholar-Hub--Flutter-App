@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme_provider.dart';
+import '../utils/auth_provider.dart';
 import 'home_screen.dart';
-import '../main.dart'; // Import to access the global key
+import '../main.dart';
+import 'auth/login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   final List<Widget> pages;
@@ -72,45 +74,77 @@ class _SplashScreenState extends State<SplashScreen>
       }
     });
 
-    // Navigate to home screen after animation completes
+    // Navigate to login screen or home screen based on auth status after animation completes
     Timer(const Duration(milliseconds: 4500), () {
       if (mounted) {
-        navigateToHome();
+        navigateToNextScreen();
       }
     });
   }
 
-  void navigateToHome() {
-    Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        pageBuilder:
-            (context, animation, secondaryAnimation) => HomeScreen(
-              currentIndex: _currentIndex,
-              pages: widget.pages,
-              onIndexChanged: (index) {
-                // This will update the state in the MyApp widget using the global key
-                myAppKey.currentState?.updateIndex(index);
-              },
-            ),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(1.0, 0.0);
-          const end = Offset.zero;
-          const curve = Curves.easeInOut;
+  void navigateToNextScreen() {
+    // Check if user is logged in with Firebase
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-          var tween = Tween(
-            begin: begin,
-            end: end,
-          ).chain(CurveTween(curve: curve));
+    if (authProvider.isLoggedIn) {
+      // Navigate to home screen if logged in
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder:
+              (context, animation, secondaryAnimation) => HomeScreen(
+                currentIndex: _currentIndex,
+                pages: widget.pages,
+                onIndexChanged: (index) {
+                  // This will update the state in the MyApp widget using the global key
+                  myAppKey.currentState?.updateIndex(index);
+                },
+              ),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(1.0, 0.0);
+            const end = Offset.zero;
+            const curve = Curves.easeInOut;
 
-          return SlideTransition(
-            position: animation.drive(tween),
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 800),
-      ),
-    );
+            var tween = Tween(
+              begin: begin,
+              end: end,
+            ).chain(CurveTween(curve: curve));
+
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 800),
+        ),
+      );
+    } else {
+      // Navigate to login screen if not logged in
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder:
+              (context, animation, secondaryAnimation) =>
+                  LoginScreen(pages: widget.pages),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(1.0, 0.0);
+            const end = Offset.zero;
+            const curve = Curves.easeInOut;
+
+            var tween = Tween(
+              begin: begin,
+              end: end,
+            ).chain(CurveTween(curve: curve));
+
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 800),
+        ),
+      );
+    }
   }
 
   @override

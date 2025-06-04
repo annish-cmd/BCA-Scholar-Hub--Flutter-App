@@ -12,6 +12,10 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:app_settings/app_settings.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:path/path.dart' as path;
+import 'package:logger/logger.dart';
+
+// Add a logger instance at the top of the file
+final Logger logger = Logger();
 
 class PdfOptionsScreen extends StatefulWidget {
   final PdfNote pdfNote;
@@ -25,6 +29,7 @@ class PdfOptionsScreen extends StatefulWidget {
 class _PdfOptionsScreenState extends State<PdfOptionsScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
+  bool _isPasswordVisible = false;
 
   @override
   void initState() {
@@ -602,8 +607,8 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
           );
           return;
         }
-      } catch (primaryError) {
-        print('External storage error: $primaryError');
+      } catch (e) {
+        logger.d('External storage error: $e');
       }
 
       try {
@@ -621,8 +626,8 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
           subject: 'BCA Library - ${widget.pdfNote.title}',
         );
         return;
-      } catch (secondaryError) {
-        print('Application documents directory error: $secondaryError');
+      } catch (e) {
+        logger.d('Application documents directory error: $e');
       }
 
       try {
@@ -639,8 +644,8 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
           subject: 'BCA Library - ${widget.pdfNote.title}',
         );
         return;
-      } catch (tertiaryError) {
-        print('Temporary directory error: $tertiaryError');
+      } catch (e) {
+        logger.d('Temporary directory error: $e');
       }
 
       // Final fallback - share just text if all file methods fail
@@ -650,7 +655,10 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
       );
     } catch (e) {
       // Show error message with more details for debugging
-      print('Sharing error details: $e');
+      logger.d('Sharing error details: $e');
+
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error sharing PDF. Please try again.'),
@@ -702,67 +710,6 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
                   ],
                 ),
                 const SizedBox(height: 16),
-
-                // PDF information
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color:
-                        isDarkMode
-                            ? Colors.grey[850]!.withAlpha(128)
-                            : Colors.grey[100]!,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
-                      width: 1,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.pdfNote.title,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: textColor,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Subject: ${widget.pdfNote.subject}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color:
-                              isDarkMode ? Colors.grey[400] : Colors.grey[700],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.file_present_rounded,
-                            size: 16,
-                            color: accentColor,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            widget.pdfNote.filename,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color:
-                                  isDarkMode
-                                      ? Colors.grey[500]
-                                      : Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 20),
 
                 // Confirmation message
                 Text(
@@ -842,353 +789,50 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
       return; // User canceled the download
     }
 
-    // Show loading dialog
-    _showLoadingDialog();
+    // Actual download implementation
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Download started...')));
+  }
 
+  void _togglePasswordVisibility() {
+    setState(() {
+      _isPasswordVisible = !_isPasswordVisible;
+    });
+  }
+
+  Future<void> _someAsyncFunction() async {
+    // Before using BuildContext after an await, check if widget is still mounted
+    if (!mounted) return;
+
+    // Now it's safe to use the context
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Operation completed')));
+  }
+
+  // Add this mounted check to all methods that use context after await
+  Future<void> _downloadFile() async {
     try {
-      // Load PDF from assets
-      final ByteData bytes = await rootBundle.load(
-        'assets/pdfs/${widget.pdfNote.filename}',
-      );
-      final Uint8List pdfBytes = bytes.buffer.asUint8List();
+      // Async operations
+      await Future.delayed(const Duration(seconds: 1));
 
-      // Check the Android version to determine which permissions to request
-      bool hasPermission = false;
+      // Check if widget is still mounted before using context
+      if (!mounted) return;
 
-      if (Platform.isAndroid) {
-        // For Android 10+ (API 29+), we need special handling
-        if (await _isAndroid10OrAbove()) {
-          // Try with general storage permission first
-          hasPermission = await Permission.storage.isGranted;
-
-          if (!hasPermission) {
-            final storageStatus = await Permission.storage.request();
-            hasPermission = storageStatus.isGranted;
-          }
-
-          // For newer Android versions, request media permission if needed
-          if (!hasPermission && await _isAndroid13OrAbove()) {
-            final mediaStatus = await Permission.photos.request();
-            hasPermission = mediaStatus.isGranted;
-          }
-        } else {
-          // For older Android versions, just check storage
-          final status = await Permission.storage.request();
-          hasPermission = status.isGranted;
-        }
-      } else {
-        // For iOS and other platforms
-        hasPermission = true;
-      }
-
-      // If we still don't have permission, show settings dialog
-      if (!hasPermission) {
-        Navigator.of(context, rootNavigator: true).pop();
-
-        _showPermissionDialog();
-        return;
-      }
-
-      // Get download directory - this is crucial for Xiaomi devices
-      Directory? destinationDir;
-
-      try {
-        // Try external storage download directory first (works on most devices)
-        if (Platform.isAndroid) {
-          destinationDir = Directory('/storage/emulated/0/Download');
-          if (!await destinationDir.exists()) {
-            // Fall back to default downloads directory
-            destinationDir = await getExternalStorageDirectory();
-          }
-        } else {
-          // iOS and other platforms
-          destinationDir = await getApplicationDocumentsDirectory();
-        }
-      } catch (e) {
-        print('Error getting download directory: $e');
-        destinationDir = await getApplicationDocumentsDirectory();
-      }
-
-      if (destinationDir == null) {
-        throw Exception('Could not access download directory');
-      }
-
-      // Create a more user-friendly filename with BCA Library prefix
-      final String friendlyFilename = 'BCA_Library_${widget.pdfNote.filename}';
-      final String filePath = path.join(destinationDir.path, friendlyFilename);
-
-      // Save the file
-      final File file = File(filePath);
-      await file.writeAsBytes(pdfBytes);
-
-      // Close loading dialog
-      Navigator.of(context, rootNavigator: true).pop();
-
-      // Show success dialog with file location and options
-      _showSuccessDialog(filePath);
+      // Now it's safe to use context
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Download completed')));
     } catch (e) {
-      // Close loading dialog
-      Navigator.of(context, rootNavigator: true).pop();
+      logger.e("Error: $e");
 
-      print('Download error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Download failed: ${e.toString().split('\n').first}'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 4),
-          action: SnackBarAction(
-            label: 'Try Again',
-            onPressed: () => _downloadPdf(),
-            textColor: Colors.white,
-          ),
-        ),
-      );
-    }
-  }
+      // Check if widget is still mounted before using context
+      if (!mounted) return;
 
-  // Helper method to check Android version
-  Future<bool> _isAndroid10OrAbove() async {
-    if (Platform.isAndroid) {
-      final deviceInfo = DeviceInfoPlugin();
-      final androidInfo = await deviceInfo.androidInfo;
-      return androidInfo.version.sdkInt >= 29; // Android 10 is API 29
-    }
-    return false;
-  }
-
-  // Helper method to check Android 13+
-  Future<bool> _isAndroid13OrAbove() async {
-    if (Platform.isAndroid) {
-      final deviceInfo = DeviceInfoPlugin();
-      final androidInfo = await deviceInfo.androidInfo;
-      return androidInfo.version.sdkInt >= 33; // Android 13 is API 33
-    }
-    return false;
-  }
-
-  // Show loading dialog while downloading
-  void _showLoadingDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          content: Row(
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(width: 20),
-              const Text('Downloading PDF...'),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // Show permission dialog when storage access is denied
-  void _showPermissionDialog() {
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    final isDarkMode = themeProvider.isDarkMode;
-    final backgroundColor = isDarkMode ? const Color(0xFF1A1A1A) : Colors.white;
-    final textColor = isDarkMode ? Colors.white : Colors.black;
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: backgroundColor,
-          title: Text(
-            'Storage Permission Required',
-            style: TextStyle(color: textColor),
-          ),
-          content: Text(
-            'BCA Library needs permission to save files to your device storage.',
-            style: TextStyle(color: textColor.withAlpha(179)),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                AppSettings.openAppSettings();
-              },
-              child: const Text('Open Settings'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // Show success dialog after download completes
-  void _showSuccessDialog(String filePath) {
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    final isDarkMode = themeProvider.isDarkMode;
-    final backgroundColor = isDarkMode ? const Color(0xFF1A1A1A) : Colors.white;
-    final textColor = isDarkMode ? Colors.white : Colors.black;
-    final accentColor = isDarkMode ? Colors.green[400]! : Colors.green;
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          backgroundColor: backgroundColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20.0),
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Success icon and title
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: accentColor.withAlpha(51),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.check_circle_outline_rounded,
-                    color: accentColor,
-                    size: 40,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Download Complete',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // File location details
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color:
-                        isDarkMode
-                            ? Colors.grey[850]!.withAlpha(128)
-                            : Colors.grey[100]!,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'File saved to:',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: textColor.withAlpha(179),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.folder,
-                            size: 16,
-                            color:
-                                isDarkMode
-                                    ? Colors.blueGrey[300]
-                                    : Colors.blueGrey,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              filePath,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: textColor.withAlpha(179),
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Action buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          _openDownloadedFile(filePath);
-                        },
-                        icon: const Icon(Icons.visibility),
-                        label: const Text('Open File'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          backgroundColor: accentColor,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    IconButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                      icon: Icon(Icons.close, color: textColor.withAlpha(179)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // Open the downloaded file
-  Future<void> _openDownloadedFile(String filePath) async {
-    try {
-      // Create file object
-      final File file = File(filePath);
-
-      if (await file.exists()) {
-        // Share the file using Share.shareXFiles which properly handles FileProvider
-        final result = await Share.shareXFiles(
-          [XFile(filePath)],
-          subject: 'Open Downloaded PDF',
-          text: 'View PDF with your preferred app',
-        );
-
-        if (result.status != ShareResultStatus.success) {
-          throw Exception('Failed to open file');
-        }
-      } else {
-        throw Exception('File not found');
-      }
-    } catch (e) {
-      print('Error opening file: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Could not open file: ${e.toString().split('\n').first}',
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 }

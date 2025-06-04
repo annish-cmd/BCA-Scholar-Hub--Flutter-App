@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/pdf_note.dart';
+import 'package:logger/logger.dart';
 
 class FavoritesProvider with ChangeNotifier {
   final Set<String> _favoritePdfIds = {};
   bool _isInitialized = false;
+
+  // Logger instance
+  final _logger = Logger();
 
   FavoritesProvider() {
     _loadFavorites();
@@ -42,7 +46,7 @@ class FavoritesProvider with ChangeNotifier {
       _isInitialized = true;
       notifyListeners();
     } catch (e) {
-      print('Error loading favorites: $e');
+      _logger.e('Error loading favorites: $e');
     }
   }
 
@@ -52,7 +56,7 @@ class FavoritesProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setStringList('favorite_pdfs', _favoritePdfIds.toList());
     } catch (e) {
-      print('Error saving favorites: $e');
+      _logger.e('Error saving favorites: $e');
     }
   }
 
