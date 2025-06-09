@@ -1,0 +1,16 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid"
+      }
+    },
+    "connectionTest": {
+      ".read": "auth != null",
+      ".write": false
+    },
+    ".read": false,
+    ".write": false
+  }
+} 

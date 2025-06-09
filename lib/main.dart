@@ -9,8 +9,6 @@ import 'screens/youtube_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/favorites_screen.dart';
 import 'screens/extra_courses_screen.dart';
-import 'screens/auth/login_screen.dart';
-import 'screens/home_screen.dart';
 import 'utils/theme_provider.dart';
 import 'utils/language_provider.dart';
 import 'utils/app_localizations.dart';

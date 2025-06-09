@@ -220,7 +220,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${e.toString()}'), backgroundColor: Colors.red),
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) {
@@ -274,7 +274,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${e.toString()}'), backgroundColor: Colors.red),
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:logger/logger.dart';
 import '../utils/theme_provider.dart';
 import '../utils/app_localizations.dart';
 import '../utils/auth_provider.dart';
@@ -8,9 +9,82 @@ import 'settings_page.dart';
 import 'about_page.dart';
 import 'help_support_page.dart';
 import 'auth/login_screen.dart';
+import '../services/database_service.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  final DatabaseService _databaseService = DatabaseService();
+  Map<String, dynamic>? _userData;
+  bool _isLoading = true;
+  final _logger = Logger();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    // Only show connection error if we can't get user data
+    bool showConnectionError = false;
+
+    if (authProvider.isLoggedIn && authProvider.currentUser != null) {
+      try {
+        final userData = await _databaseService.getUserData(
+          authProvider.currentUser!.uid,
+        );
+
+        if (mounted) {
+          setState(() {
+            _userData = userData;
+            _isLoading = false;
+          });
+        }
+
+        // If we successfully loaded user data, don't show connection error
+        if (userData != null) {
+          showConnectionError = false;
+        } else {
+          showConnectionError = true;
+        }
+      } catch (e) {
+        _logger.e('Error loading user data: $e');
+        showConnectionError = true;
+
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+
+    // Show error message if needed
+    if (showConnectionError && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Failed to connect to database. Please check your internet connection.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,30 +116,42 @@ class ProfilePage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Center(
-                  child: CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Colors.white,
-                    child:
-                        authProvider.isLoggedIn
-                            ? Text(
-                              authProvider.userEmail?.isNotEmpty == true
-                                  ? authProvider.userEmail![0].toUpperCase()
-                                  : 'A',
-                              style: TextStyle(
-                                fontSize: 40,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
-                              ),
-                            )
-                            : Icon(Icons.person, size: 50, color: Colors.blue),
-                  ),
-                ),
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : Center(
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Colors.white,
+                        child:
+                            authProvider.isLoggedIn
+                                ? Text(
+                                  _userData?['displayName']?.isNotEmpty == true
+                                      ? _userData!['displayName'][0]
+                                          .toUpperCase()
+                                      : authProvider.userEmail?.isNotEmpty ==
+                                          true
+                                      ? authProvider.userEmail![0].toUpperCase()
+                                      : 'A',
+                                  style: const TextStyle(
+                                    fontSize: 40,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
+                                )
+                                : const Icon(
+                                  Icons.person,
+                                  size: 50,
+                                  color: Colors.blue,
+                                ),
+                      ),
+                    ),
                 const SizedBox(height: 16),
                 Center(
                   child: Text(
                     authProvider.isLoggedIn
-                        ? (authProvider.userEmail?.split('@').first ?? 'User')
+                        ? (_userData?['displayName'] ??
+                            authProvider.userEmail?.split('@').first ??
+                            'User')
                         : 'Guest User',
                     style: TextStyle(
                       fontSize: 24,
@@ -77,7 +163,7 @@ class ProfilePage extends StatelessWidget {
                 Center(
                   child: Text(
                     authProvider.isLoggedIn
-                        ? (authProvider.userEmail ?? '')
+                        ? (_userData?['email'] ?? authProvider.userEmail ?? '')
                         : 'Not logged in',
                     style: TextStyle(
                       fontSize: 16,
@@ -85,6 +171,16 @@ class ProfilePage extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (authProvider.isLoggedIn && _userData != null)
+                  Center(
+                    child: Text(
+                      'Last Login: ${_formatTimestamp(_userData?['lastLogin'])}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: 32),
                 Card(
                   elevation: 4,
@@ -204,6 +300,25 @@ class ProfilePage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null) return 'Unknown';
+
+    try {
+      // Firebase Realtime Database stores timestamps as milliseconds since epoch
+      final DateTime dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
+
+      // Format in 12-hour format with AM/PM
+      final hour = dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour;
+      final hourString = hour == 0 ? '12' : hour.toString();
+      final amPm = dateTime.hour >= 12 ? 'PM' : 'AM';
+      final minutes = dateTime.minute.toString().padLeft(2, '0');
+
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year} $hourString:$minutes $amPm';
+    } catch (e) {
+      return 'Unknown';
+    }
   }
 
   void _showLogoutConfirmationDialog(BuildContext context) {

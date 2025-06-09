@@ -64,61 +64,64 @@ class _SignupScreenState extends State<SignupScreen> {
       });
 
       try {
-        // Get auth provider
+        // Simulate signup delay
+        await Future.delayed(const Duration(seconds: 2));
+
+        // Simulate signup delay
+        if (!mounted) return;
+
+        // Get auth provider after checking mounted status
         final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-        // Firebase signup with email and password
-        final userCredential = await authProvider.signup(
-          _emailController.text.trim(),
-          _passwordController.text.trim(),
-          _nameController.text.trim(),
+        // Signup logic
+        await authProvider.signup(
+          _emailController.text,
+          _passwordController.text,
+          _nameController.text,
         );
 
         // Check if widget is still mounted before using context
         if (!mounted) return;
 
-        // If signup successful, navigate to home screen
-        if (userCredential.user != null) {
-          // Navigate to home screen after signup
-          Navigator.pushReplacement(
-            context,
-            PageRouteBuilder(
-              pageBuilder:
-                  (context, animation, secondaryAnimation) => HomeScreen(
-                    currentIndex: 0,
-                    pages: widget.pages,
-                    onIndexChanged: (index) {},
-                  ),
-              transitionsBuilder: (
-                context,
-                animation,
-                secondaryAnimation,
-                child,
-              ) {
-                const begin = Offset(1.0, 0.0);
-                const end = Offset.zero;
-                const curve = Curves.easeInOut;
+        // Navigate to home screen after signup
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder:
+                (context, animation, secondaryAnimation) => HomeScreen(
+                  currentIndex: 0,
+                  pages: widget.pages,
+                  onIndexChanged: (index) {},
+                ),
+            transitionsBuilder: (
+              context,
+              animation,
+              secondaryAnimation,
+              child,
+            ) {
+              const begin = Offset(1.0, 0.0);
+              const end = Offset.zero;
+              const curve = Curves.easeInOut;
 
-                var tween = Tween(
-                  begin: begin,
-                  end: end,
-                ).chain(CurveTween(curve: curve));
-                return SlideTransition(
-                  position: animation.drive(tween),
-                  child: child,
-                );
-              },
-              transitionDuration: const Duration(milliseconds: 500),
-            ),
-          );
-        }
+              var tween = Tween(
+                begin: begin,
+                end: end,
+              ).chain(CurveTween(curve: curve));
+              return SlideTransition(
+                position: animation.drive(tween),
+                child: child,
+              );
+            },
+            transitionDuration: const Duration(milliseconds: 500),
+          ),
+        );
       } catch (e) {
         // Check if widget is still mounted before using context
         if (!mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       } finally {
         // Only set state if still mounted
         if (mounted) {
@@ -126,60 +129,6 @@ class _SignupScreenState extends State<SignupScreen> {
             _isLoading = false;
           });
         }
-      }
-    }
-  }
-
-  // Add Google sign-in handler
-  Future<void> _handleGoogleSignIn() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      await authProvider.signInWithGoogle();
-
-      if (!mounted) return;
-
-      // Navigate to home screen after successful Google sign-in
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder:
-              (context, animation, secondaryAnimation) => HomeScreen(
-                currentIndex: 0,
-                pages: widget.pages,
-                onIndexChanged: (index) {},
-              ),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            const begin = Offset(1.0, 0.0);
-            const end = Offset.zero;
-            const curve = Curves.easeInOut;
-
-            var tween = Tween(
-              begin: begin,
-              end: end,
-            ).chain(CurveTween(curve: curve));
-            return SlideTransition(
-              position: animation.drive(tween),
-              child: child,
-            );
-          },
-          transitionDuration: const Duration(milliseconds: 500),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${e.toString()}'), backgroundColor: Colors.red),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
       }
     }
   }
@@ -309,7 +258,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             filled: true,
                             fillColor:
                                 isDarkMode
-                                    ? Colors.grey[800]!.withOpacity(0.5)
+                                    ? Colors.grey[800]!.withAlpha(128)
                                     : Colors.grey[200]!,
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 20,
@@ -344,7 +293,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             filled: true,
                             fillColor:
                                 isDarkMode
-                                    ? Colors.grey[800]!.withOpacity(0.5)
+                                    ? Colors.grey[800]!.withAlpha(128)
                                     : Colors.grey[200]!,
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 20,
@@ -394,7 +343,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             filled: true,
                             fillColor:
                                 isDarkMode
-                                    ? Colors.grey[800]!.withOpacity(0.5)
+                                    ? Colors.grey[800]!.withAlpha(128)
                                     : Colors.grey[200]!,
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 20,
@@ -444,7 +393,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             filled: true,
                             fillColor:
                                 isDarkMode
-                                    ? Colors.grey[800]!.withOpacity(0.5)
+                                    ? Colors.grey[800]!.withAlpha(128)
                                     : Colors.grey[200]!,
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 20,
@@ -518,73 +467,6 @@ class _SignupScreenState extends State<SignupScreen> {
                               ),
                             ),
                           ],
-                        ),
-
-                        const SizedBox(height: 30),
-
-                        // Or continue with Google
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Divider(
-                                color: textColor.withAlpha(77),
-                                thickness: 1,
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                              ),
-                              child: Text(
-                                'Or sign up with',
-                                style: TextStyle(
-                                  color: textColor.withAlpha(179),
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Divider(
-                                color: textColor.withAlpha(77),
-                                thickness: 1,
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // Google Sign Up Button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 55,
-                          child: OutlinedButton.icon(
-                            icon: Icon(
-                              Icons.g_mobiledata,
-                              size: 24,
-                              color: Colors.red,
-                            ),
-                            label: Text(
-                              'Continue with Google',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: textColor,
-                              ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(
-                                color:
-                                    isDarkMode
-                                        ? Colors.grey[700]!
-                                        : Colors.grey[300]!,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ),
-                            onPressed: _isLoading ? null : _handleGoogleSignIn,
-                          ),
                         ),
 
                         const SizedBox(height: 30),

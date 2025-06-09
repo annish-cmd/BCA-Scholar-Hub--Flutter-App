@@ -60,3 +60,32 @@ app.*.map.json
 **/generated_plugin_registrant.*
 **/generated_plugins.cmake
 local.properties
+
+# Firebase configuration files
+google-services.json
+GoogleService-Info.plist
+firebase_options.dart
+firebase_app_id_file.json
+.firebaserc
+firebase.json
+
+# Environment files
+.env
+.env.*
+*.env.dart
+
+# Key files and certificates
+key.properties
+upload-keystore.jks
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.provisionprofile
+
+# Other sensitive files
+**/secrets.json
+**/credentials.json
+**/client_secret*.json

@@ -48,6 +48,8 @@ class DefaultFirebaseOptions {
     authDomain: 'bcalibraryapp.firebaseapp.com',
     storageBucket: 'bcalibraryapp.firebasestorage.app',
     measurementId: 'G-LDV5VJBZZE',
+    databaseURL:
+        'https://bcalibraryapp-default-rtdb.asia-southeast1.firebasedatabase.app/',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
@@ -56,5 +58,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '567128132210',
     projectId: 'bcalibraryapp',
     storageBucket: 'bcalibraryapp.firebasestorage.app',
+    databaseURL:
+        'https://bcalibraryapp-default-rtdb.asia-southeast1.firebasedatabase.app/',
   );
 }

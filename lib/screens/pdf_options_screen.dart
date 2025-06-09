@@ -8,10 +8,6 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:app_settings/app_settings.dart';
-import 'package:device_info_plus/device_info_plus.dart';
-import 'package:path/path.dart' as path;
 import 'package:logger/logger.dart';
 
 // Add a logger instance at the top of the file
@@ -29,7 +25,6 @@ class PdfOptionsScreen extends StatefulWidget {
 class _PdfOptionsScreenState extends State<PdfOptionsScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
-  bool _isPasswordVisible = false;
 
   @override
   void initState() {
@@ -790,49 +785,11 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
     }
 
     // Actual download implementation
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Download started...')));
-  }
-
-  void _togglePasswordVisibility() {
-    setState(() {
-      _isPasswordVisible = !_isPasswordVisible;
-    });
-  }
-
-  Future<void> _someAsyncFunction() async {
-    // Before using BuildContext after an await, check if widget is still mounted
     if (!mounted) return;
-
-    // Now it's safe to use the context
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Operation completed')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Download started...'))
+    );
   }
 
-  // Add this mounted check to all methods that use context after await
-  Future<void> _downloadFile() async {
-    try {
-      // Async operations
-      await Future.delayed(const Duration(seconds: 1));
 
-      // Check if widget is still mounted before using context
-      if (!mounted) return;
-
-      // Now it's safe to use context
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Download completed')));
-    } catch (e) {
-      logger.e("Error: $e");
-
-      // Check if widget is still mounted before using context
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
-    }
-  }
 }

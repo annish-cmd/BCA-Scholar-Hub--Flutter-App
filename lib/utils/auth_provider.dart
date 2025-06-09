@@ -3,11 +3,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import '../services/database_service.dart';
 
 class AuthProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
   final Logger _logger = Logger();
+  final DatabaseService _databaseService = DatabaseService();
 
   bool get isLoggedIn => _auth.currentUser != null;
   String? get userEmail => _auth.currentUser?.email;
@@ -52,6 +54,11 @@ class AuthProvider with ChangeNotifier {
       // Attempt Firebase authentication
       final UserCredential userCredential = await _auth
           .signInWithEmailAndPassword(email: email.trim(), password: password);
+
+      // Save user data to Realtime Database
+      if (userCredential.user != null) {
+        await _databaseService.saveUserData(userCredential.user!);
+      }
 
       _logger.i('Login successful for user: ${userCredential.user?.email}');
       notifyListeners();
@@ -112,6 +119,9 @@ class AuthProvider with ChangeNotifier {
         // Reload user to get updated profile
         await userCredential.user!.reload();
         _logger.i('Reloaded user profile');
+
+        // Save user data to Realtime Database
+        await _databaseService.saveUserData(userCredential.user!, name: name);
       }
 
       _logger.i('Signup successful for user: ${userCredential.user?.email}');
@@ -171,6 +181,11 @@ class AuthProvider with ChangeNotifier {
 
         // Sign in to Firebase with the Google credential
         userCredential = await _auth.signInWithCredential(credential);
+      }
+
+      // Save user data to Realtime Database
+      if (userCredential.user != null) {
+        await _databaseService.saveUserData(userCredential.user!);
       }
 
       notifyListeners();
