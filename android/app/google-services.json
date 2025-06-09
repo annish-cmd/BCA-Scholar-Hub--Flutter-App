@@ -7,7 +7,7 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:567128132210:web:a886d7e5f1738b92a250eb",
+        "mobilesdk_app_id": "1:567128132210:android:a886d7e5f1738b92a250eb",
         "android_client_info": {
           "package_name": "com.example.anish_library"
         }

@@ -27,11 +27,20 @@ final GlobalKey<MyAppState> myAppKey = GlobalKey<MyAppState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Initialize Firebase with a safer approach to avoid duplicate initialization
+  try {
+    // Check if Firebase is already initialized
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
 
-  // Initialize Firebase Analytics but don't store the variable
-  FirebaseAnalytics.instance;
+    // Initialize Firebase Analytics but don't store the variable
+    FirebaseAnalytics.instance;
+  } catch (e) {
+    debugPrint('Firebase initialization error: $e');
+  }
 
   // Allow both portrait and landscape orientations
   SystemChrome.setPreferredOrientations([

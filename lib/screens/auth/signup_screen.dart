@@ -4,6 +4,8 @@ import '../../utils/theme_provider.dart';
 import 'login_screen.dart';
 import '../home_screen.dart';
 import '../../utils/auth_provider.dart';
+import '../legal/terms_conditions_screen.dart';
+import '../legal/privacy_policy_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   final List<Widget> pages;
@@ -432,37 +434,75 @@ class _SignupScreenState extends State<SignupScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 8),
                             Expanded(
-                              child: RichText(
-                                text: TextSpan(
-                                  text: 'I agree to the ',
-                                  style: TextStyle(
-                                    color: textColor.withAlpha(204),
-                                    fontSize: 14,
+                              child: GestureDetector(
+                                onTap: () {
+                                  // Do nothing when tapping the whole text
+                                },
+                                child: RichText(
+                                  text: TextSpan(
+                                    text: 'I agree to the ',
+                                    style: TextStyle(
+                                      color: textColor.withAlpha(204),
+                                      fontSize: 13,
+                                    ),
+                                    children: [
+                                      WidgetSpan(
+                                        alignment: PlaceholderAlignment.middle,
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder:
+                                                    (context) =>
+                                                        const TermsConditionsScreen(),
+                                              ),
+                                            );
+                                          },
+                                          child: Text(
+                                            'Terms',
+                                            style: TextStyle(
+                                              color: Colors.blue,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: ' and ',
+                                        style: TextStyle(
+                                          color: textColor.withAlpha(204),
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      WidgetSpan(
+                                        alignment: PlaceholderAlignment.middle,
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder:
+                                                    (context) =>
+                                                        const PrivacyPolicyScreen(),
+                                              ),
+                                            );
+                                          },
+                                          child: Text(
+                                            'Privacy Policy',
+                                            style: TextStyle(
+                                              color: Colors.blue,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  children: [
-                                    TextSpan(
-                                      text: 'Terms of Service',
-                                      style: TextStyle(
-                                        color: Colors.blue,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    TextSpan(
-                                      text: ' and ',
-                                      style: TextStyle(
-                                        color: textColor.withAlpha(204),
-                                      ),
-                                    ),
-                                    TextSpan(
-                                      text: 'Privacy Policy',
-                                      style: TextStyle(
-                                        color: Colors.blue,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
                                 ),
                               ),
                             ),
