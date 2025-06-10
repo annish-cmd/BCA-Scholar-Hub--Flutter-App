@@ -5,6 +5,8 @@ import '../utils/language_provider.dart';
 import '../utils/app_localizations.dart';
 import 'privacy_policy_page.dart';
 import 'terms_of_service_page.dart';
+import 'profile_info_page.dart';
+import 'password_security_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -15,9 +17,6 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   bool _notificationsEnabled = true;
-  bool _autoPlayVideos = true;
-  bool _downloadOverWifi = true;
-  String _downloadQuality = 'High';
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +91,14 @@ class _SettingsPageState extends State<SettingsPage> {
                   size: 16,
                   color: textColor,
                 ),
-                onTap: () {},
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ProfileInfoPage(),
+                    ),
+                  );
+                },
               ),
               Divider(),
               ListTile(
@@ -115,7 +121,14 @@ class _SettingsPageState extends State<SettingsPage> {
                   size: 16,
                   color: textColor,
                 ),
-                onTap: () {},
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PasswordSecurityPage(),
+                    ),
+                  );
+                },
               ),
             ], cardColor),
 
@@ -244,103 +257,6 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ], cardColor),
 
-            _buildSectionHeader(
-              localizations.translate('media_settings'),
-              textColor,
-            ),
-            _buildSettingsCard([
-              SwitchListTile(
-                secondary: CircleAvatar(
-                  backgroundColor: Colors.green[100],
-                  child: Icon(Icons.play_circle, color: Colors.green),
-                ),
-                title: Text(
-                  localizations.translate('autoplay'),
-                  style: TextStyle(color: textColor),
-                ),
-                subtitle: Text(
-                  localizations.translate('autoplay_description'),
-                  style: TextStyle(
-                    color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
-                  ),
-                ),
-                value: _autoPlayVideos,
-                onChanged: (value) {
-                  setState(() {
-                    _autoPlayVideos = value;
-                  });
-                },
-              ),
-              Divider(),
-              SwitchListTile(
-                secondary: CircleAvatar(
-                  backgroundColor: Colors.blue[100],
-                  child: Icon(Icons.wifi, color: Colors.blue),
-                ),
-                title: Text(
-                  localizations.translate('download_wifi'),
-                  style: TextStyle(color: textColor),
-                ),
-                subtitle: Text(
-                  localizations.translate('download_wifi'),
-                  style: TextStyle(
-                    color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
-                  ),
-                ),
-                value: _downloadOverWifi,
-                onChanged: (value) {
-                  setState(() {
-                    _downloadOverWifi = value;
-                  });
-                },
-              ),
-              Divider(),
-              ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Colors.purple[100],
-                  child: Icon(Icons.high_quality, color: Colors.purple),
-                ),
-                title: Text(
-                  localizations.translate('download_quality'),
-                  style: TextStyle(color: textColor),
-                ),
-                subtitle: Text(
-                  localizations.translate('download_quality'),
-                  style: TextStyle(
-                    color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
-                  ),
-                ),
-                trailing: DropdownButton<String>(
-                  value: _downloadQuality,
-                  icon: Icon(Icons.arrow_drop_down, color: textColor),
-                  dropdownColor: cardColor,
-                  underline: Container(),
-                  onChanged: (String? newValue) {
-                    if (newValue != null) {
-                      setState(() {
-                        _downloadQuality = newValue;
-                      });
-                    }
-                  },
-                  items:
-                      <String>[
-                        'Low',
-                        'Medium',
-                        'High',
-                        'Very High',
-                      ].map<DropdownMenuItem<String>>((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(
-                            value,
-                            style: TextStyle(color: textColor),
-                          ),
-                        );
-                      }).toList(),
-                ),
-              ),
-            ], cardColor),
-
             _buildSectionHeader(localizations.translate('about'), textColor),
             _buildSettingsCard([
               ListTile(
@@ -454,9 +370,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                 // Reset all settings
                                 setState(() {
                                   _notificationsEnabled = true;
-                                  _autoPlayVideos = true;
-                                  _downloadOverWifi = true;
-                                  _downloadQuality = 'High';
                                 });
 
                                 // Reset theme settings

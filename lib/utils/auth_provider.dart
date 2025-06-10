@@ -230,6 +230,67 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  // Reauthenticate user with password
+  Future<void> reauthenticateWithPassword(String password) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw FirebaseAuthException(
+          code: 'user-not-found',
+          message: 'No user is currently signed in.',
+        );
+      }
+
+      if (user.email == null) {
+        throw FirebaseAuthException(
+          code: 'invalid-email',
+          message: 'No email associated with this account.',
+        );
+      }
+
+      // Create credential
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: password,
+      );
+
+      // Reauthenticate
+      await user.reauthenticateWithCredential(credential);
+      _logger.i('User reauthenticated successfully');
+    } catch (e) {
+      _logger.e('Reauthentication error: $e');
+      throw _handleAuthException(e);
+    }
+  }
+
+  // Update password
+  Future<void> updatePassword(String newPassword) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw FirebaseAuthException(
+          code: 'user-not-found',
+          message: 'No user is currently signed in.',
+        );
+      }
+
+      // Validate password
+      if (newPassword.length < 6) {
+        throw FirebaseAuthException(
+          code: 'weak-password',
+          message: 'Password should be at least 6 characters.',
+        );
+      }
+
+      // Update password
+      await user.updatePassword(newPassword);
+      _logger.i('Password updated successfully');
+    } catch (e) {
+      _logger.e('Password update error: $e');
+      throw _handleAuthException(e);
+    }
+  }
+
   // Handle Firebase Auth exceptions and return user-friendly error messages
   String _handleAuthException(dynamic e) {
     if (e is FirebaseAuthException) {
