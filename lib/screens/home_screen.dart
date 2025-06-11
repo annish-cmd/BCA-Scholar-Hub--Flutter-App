@@ -5,6 +5,7 @@ import '../utils/theme_provider.dart';
 import '../utils/app_localizations.dart';
 import '../utils/url_launcher_utils.dart';
 import '../widgets/search_app_bar.dart';
+import 'global_chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final int currentIndex;
@@ -273,6 +274,19 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () {
                 _handleIndexChanged(13);
                 Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              title: Text('Global Chat', style: textStyle),
+              leading: Icon(Icons.chat, color: Colors.white),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const GlobalChatScreen(),
+                  ),
+                );
               },
             ),
           ],

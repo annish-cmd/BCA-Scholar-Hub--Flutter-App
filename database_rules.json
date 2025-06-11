@@ -1,0 +1,40 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+    "global_chat": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$message_id": {
+        ".validate": "newData.hasChildren(['userId', 'userName', 'text', 'timestamp'])",
+        "userId": {
+          ".validate": "newData.isString() && newData.val() === auth.uid"
+        },
+        "userName": {
+          ".validate": "newData.isString()"
+        },
+        "text": {
+          ".validate": "newData.isString() && newData.val().length <= 500"
+        },
+        "timestamp": {
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        },
+        "userPhotoUrl": {
+          ".validate": "newData.isString() || newData.val() == null"
+        },
+        "replyToId": {
+          ".validate": "newData.isString() || newData.val() == null"
+        },
+        "replyToUserName": {
+          ".validate": "newData.isString() || newData.val() == null"
+        },
+        "replyToText": {
+          ".validate": "newData.isString() || newData.val() == null"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+} 
