@@ -73,7 +73,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 ),
 
                 _buildSectionContent(
-                  'BCA Library is committed to protecting your privacy while providing you with the best educational resources for your BCA studies. This policy explains how we handle your information.',
+                  'BCA Scholar Hub is committed to protecting your privacy while providing you with the best educational resources for your BCA studies. This policy explains how we handle your information.',
                   textColor,
                 ),
 
@@ -121,7 +121,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
 
                 _buildSectionTitle('7. Contact Us', textColor),
                 _buildSectionContent(
-                  'If you have questions about how we protect your privacy while providing educational resources, please contact our student support team at bcalibrary@example.com',
+                  'If you have questions about how we protect your privacy while providing educational resources, please contact our student support team at bcascholar@example.com',
                   textColor,
                 ),
 

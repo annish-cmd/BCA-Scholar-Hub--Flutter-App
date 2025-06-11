@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import '../screens/webview_screen.dart';
 
 class UrlLauncherUtils {
-  // Launch a URL and handle any errors
+  // Launch a URL in external browser and handle any errors
   static Future<void> launchUrlWithErrorHandling(
     BuildContext context,
     String urlString,
@@ -34,6 +36,43 @@ class UrlLauncherUtils {
         'Could not open website. Please try again later.',
       );
     }
+  }
+
+  // Launch a URL in the in-app WebView
+  static void launchInAppWebView(
+    BuildContext context,
+    String urlString,
+    String title,
+  ) {
+    // Pre-create the WebViewController for smoother loading
+    final controller =
+        WebViewController()
+          ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..setBackgroundColor(const Color(0xFFFAFAFA))
+          ..enableZoom(true)
+          ..setUserAgent(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+          );
+
+    // Start loading before opening the WebView
+    controller.loadRequest(Uri.parse(urlString));
+
+    // Slight delay to allow the controller to initialize
+    Future.delayed(const Duration(milliseconds: 50), () {
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) => WebViewScreen(
+                  url: urlString,
+                  title: title,
+                  controller: controller,
+                ),
+          ),
+        );
+      }
+    });
   }
 
   // Show an error snackbar

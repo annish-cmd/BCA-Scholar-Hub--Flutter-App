@@ -18,8 +18,8 @@ class AppLocalizations {
   static final Map<String, Map<String, String>> _localizedValues = {
     'en': {
       // General
-      'app_name': 'BCA Library',
-      'welcome': 'Welcome to BCA Library',
+      'app_name': 'BCA Scholar Hub',
+      'welcome': 'Welcome to BCA Scholar Hub',
       'home': 'Home',
       'profile': 'Profile',
       'settings': 'Settings',
@@ -62,7 +62,7 @@ class AppLocalizations {
 
       // Placeholders
       'welcome_message':
-          'Welcome to BCA Library! Access all educational resources in one place.',
+          'Welcome to BCA Scholar Hub! Access all educational resources in one place.',
       'youtube_description': 'Watch educational videos on various subjects.',
       'search_description': 'Find specific study materials quickly.',
       'favorites_description': 'Access your saved study materials.',

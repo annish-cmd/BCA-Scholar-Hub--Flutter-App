@@ -120,7 +120,7 @@ class MyAppState extends State<MyApp> {
     homeWidget = SplashScreen(pages: _pages);
 
     return MaterialApp(
-      title: 'BCA Library',
+      title: 'BCA Scholar Hub',
       debugShowCheckedModeBanner: false,
 
       // Localization setup (Languages)

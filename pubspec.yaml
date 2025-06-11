@@ -36,6 +36,7 @@ dependencies:
   firebase_database: ^11.0.0
   logger: ^2.5.0
   google_sign_in: ^6.3.0
+  webview_flutter: ^4.13.0
 
 dev_dependencies:
   flutter_test:

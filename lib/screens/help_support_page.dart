@@ -107,7 +107,7 @@ class HelpSupportPage extends StatelessWidget {
                 SizedBox(height: 20),
                 Center(
                   child: Text(
-                    '© 2025 BCA Library. All rights reserved.',
+                    '© 2025 BCA Scholar Hub. All rights reserved.',
                     style: TextStyle(
                       fontSize: 12,
                       color: textColor.withAlpha(179),

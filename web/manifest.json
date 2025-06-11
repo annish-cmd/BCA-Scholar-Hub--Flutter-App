@@ -1,11 +1,11 @@
 {
-    "name": "BCA Library",
-    "short_name": "BCA Library",
+    "name": "BCA Scholar Hub",
+    "short_name": "BCA Scholar Hub",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#FFFFFF",
     "theme_color": "#0175C2",
-    "description": "BCA Library App for students",
+    "description": "BCA Scholar Hub App for students",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

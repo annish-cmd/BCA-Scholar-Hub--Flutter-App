@@ -578,9 +578,9 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
       final String assetPath = 'assets/pdfs/${widget.pdfNote.filename}';
       final ByteData bytes = await rootBundle.load(assetPath);
 
-      // Create share message with BCA Library source
+      // Create share message with BCA Scholar Hub source
       final String shareMessage =
-          'Notes from BCA Library\n\n'
+          'Notes from BCA Scholar Hub\n\n'
           'Title: ${widget.pdfNote.title}\n'
           'Subject: ${widget.pdfNote.subject}\n'
           'Description: ${widget.pdfNote.description}';
@@ -598,7 +598,7 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
           await Share.shareXFiles(
             [XFile(filePath)],
             text: shareMessage,
-            subject: 'BCA Library - ${widget.pdfNote.title}',
+            subject: 'BCA Scholar Hub - ${widget.pdfNote.title}',
           );
           return;
         }
@@ -618,7 +618,7 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
         await Share.shareXFiles(
           [XFile(appDocPath)],
           text: shareMessage,
-          subject: 'BCA Library - ${widget.pdfNote.title}',
+          subject: 'BCA Scholar Hub - ${widget.pdfNote.title}',
         );
         return;
       } catch (e) {
@@ -636,7 +636,7 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
         await Share.shareXFiles(
           [XFile(tempPath)],
           text: shareMessage,
-          subject: 'BCA Library - ${widget.pdfNote.title}',
+          subject: 'BCA Scholar Hub - ${widget.pdfNote.title}',
         );
         return;
       } catch (e) {
@@ -646,7 +646,7 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
       // Final fallback - share just text if all file methods fail
       await Share.share(
         shareMessage,
-        subject: 'BCA Library - ${widget.pdfNote.title}',
+        subject: 'BCA Scholar Hub - ${widget.pdfNote.title}',
       );
     } catch (e) {
       // Show error message with more details for debugging
@@ -786,10 +786,8 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
 
     // Actual download implementation
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Download started...'))
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Download started...')));
   }
-
-
 }

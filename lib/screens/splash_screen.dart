@@ -260,10 +260,10 @@ class _SplashScreenState extends State<SplashScreen>
                           ).createShader(bounds);
                         },
                         child: Text(
-                          "BCA Library",
+                          "BCA Scholar Hub",
                           style: TextStyle(
                             fontFamily: 'Bauhaus 93',
-                            fontSize: 36,
+                            fontSize: 32,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),

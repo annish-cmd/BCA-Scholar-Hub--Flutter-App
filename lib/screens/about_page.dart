@@ -235,7 +235,7 @@ class AboutPage extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        '© 2025 BCA Library. All rights reserved.',
+                        '© 2025 BCA Scholar Hub. All rights reserved.',
                         style: TextStyle(
                           fontSize: 12,
                           color: textColor.withAlpha(179),

@@ -72,11 +72,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ? SearchAppBar(onClose: _toggleSearch, isDarkMode: isDarkMode)
               : AppBar(
                 title: Text(
-                  'BCA Library',
+                  'BCA Scholar Hub',
                   style: TextStyle(
                     fontFamily: 'Bauhaus 93',
                     color: Colors.white,
-                    fontSize: 24,
+                    fontSize: 22,
                     shadows: [
                       Shadow(
                         color: Colors.black.withAlpha(128),
@@ -201,10 +201,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'BCA Library',
+                  'BCA Scholar Hub',
                   style: TextStyle(
                     fontFamily: 'Bauhaus 93',
-                    fontSize: 34,
+                    fontSize: 30,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
@@ -217,10 +217,11 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () {
                 // Close the drawer first
                 Navigator.pop(context);
-                // Launch website
-                UrlLauncherUtils.launchUrlWithErrorHandling(
+                // Open website inside the app
+                UrlLauncherUtils.launchInAppWebView(
                   context,
                   'https://www.anishchauhan.com.np/',
+                  'Contact Us',
                 );
               },
             ),
@@ -230,10 +231,11 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () {
                 // Close the drawer first
                 Navigator.pop(context);
-                // Launch Anish's website
-                UrlLauncherUtils.launchUrlWithErrorHandling(
+                // Open website inside the app
+                UrlLauncherUtils.launchInAppWebView(
                   context,
                   'https://www.anishchauhan.com.np/',
+                  'Our Website',
                 );
               },
             ),
@@ -243,10 +245,11 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () {
                 // Close the drawer first
                 Navigator.pop(context);
-                // Launch Anish's website
-                UrlLauncherUtils.launchUrlWithErrorHandling(
+                // Open Facebook page inside the app
+                UrlLauncherUtils.launchInAppWebView(
                   context,
-                  'https://www.anishchauhan.com.np/',
+                  'https://www.facebook.com/ItsMeAnnesh/',
+                  'Facebook Page',
                 );
               },
             ),
@@ -256,10 +259,11 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () {
                 // Close the drawer first
                 Navigator.pop(context);
-                // Launch Anish's website
-                UrlLauncherUtils.launchUrlWithErrorHandling(
+                // Open Instagram profile inside the app
+                UrlLauncherUtils.launchInAppWebView(
                   context,
-                  'https://www.anishchauhan.com.np/',
+                  'https://www.instagram.com/theannishchauhan_____',
+                  'Instagram',
                 );
               },
             ),

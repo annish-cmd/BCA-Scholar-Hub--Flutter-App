@@ -67,13 +67,13 @@ class TermsConditionsScreen extends StatelessWidget {
                 ),
 
                 _buildSectionContent(
-                  'Welcome to BCA Library, your comprehensive educational resource for BCA students. By using our app, you agree to these terms.',
+                  'Welcome to BCA Scholar Hub, your comprehensive educational resource for BCA students. By using our app, you agree to these terms.',
                   textColor,
                 ),
 
                 _buildSectionTitle('1. Educational Use', textColor),
                 _buildSectionContent(
-                  'BCA Library provides academic resources for educational purposes only. All study materials, notes, and resources are designed to supplement your BCA curriculum and enhance your learning experience.',
+                  'BCA Scholar Hub provides academic resources for educational purposes only. All study materials, notes, and resources are designed to supplement your BCA curriculum and enhance your learning experience.',
                   textColor,
                 ),
 
@@ -91,7 +91,7 @@ class TermsConditionsScreen extends StatelessWidget {
 
                 _buildSectionTitle('4. Academic Integrity', textColor),
                 _buildSectionContent(
-                  'BCA Library is designed to support your learning journey. We encourage using our resources to enhance your understanding, but you must adhere to your institution\'s academic integrity policies when using our materials for assignments.',
+                  'BCA Scholar Hub is designed to support your learning journey. We encourage using our resources to enhance your understanding, but you must adhere to your institution\'s academic integrity policies when using our materials for assignments.',
                   textColor,
                 ),
 
@@ -109,13 +109,13 @@ class TermsConditionsScreen extends StatelessWidget {
 
                 _buildSectionTitle('7. Limitation of Liability', textColor),
                 _buildSectionContent(
-                  'While we strive for accuracy in all educational materials, BCA Library is not responsible for any academic outcomes resulting from the use of our content. Users should verify information through official course materials.',
+                  'While we strive for accuracy in all educational materials, BCA Scholar Hub is not responsible for any academic outcomes resulting from the use of our content. Users should verify information through official course materials.',
                   textColor,
                 ),
 
                 _buildSectionTitle('8. Contact Information', textColor),
                 _buildSectionContent(
-                  'For questions about these terms or suggestions to improve our educational resources, please contact us at bcalibrary@example.com',
+                  'For questions about these terms or suggestions to improve our educational resources, please contact us at bcascholar@example.com',
                   textColor,
                 ),
 
