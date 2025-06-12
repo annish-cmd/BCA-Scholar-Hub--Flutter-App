@@ -36,6 +36,11 @@ class AppLocalizations {
       'search_hint': 'Search subjects...',
       'no_results_found': 'No results found',
 
+      // AI Assistant
+      'ai': 'AI',
+      'ask_me': 'Ask me...',
+      'clear_chat': 'Clear Chat',
+
       // Settings
       'dark_mode': 'Dark Mode',
       'theme_description': 'Switch between light and dark theme',
@@ -114,6 +119,11 @@ class AppLocalizations {
       // Search
       'search_hint': 'विषयहरू खोज्नुहोस्...',
       'no_results_found': 'कुनै परिणाम फेला परेन',
+
+      // AI Assistant
+      'ai': 'एआई',
+      'ask_me': 'मलाई सोध्नुहोस्...',
+      'clear_chat': 'च्याट खाली गर्नुहोस्',
 
       // Settings
       'dark_mode': 'डार्क मोड',
@@ -197,6 +207,11 @@ class AppLocalizations {
       // Search
       'search_hint': 'विषय खोजें...',
       'no_results_found': 'कोई परिणाम नहीं मिला',
+
+      // AI Assistant
+      'ai': 'एआई',
+      'ask_me': 'मुझसे पूछें...',
+      'clear_chat': 'चैट साफ करें',
 
       // Settings
       'dark_mode': 'डार्क मोड',

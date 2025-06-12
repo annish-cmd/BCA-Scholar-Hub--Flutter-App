@@ -89,3 +89,7 @@ upload-keystore.jks
 **/secrets.json
 **/credentials.json
 **/client_secret*.json
+
+# API Keys Configuration
+lib/config/api_keys.dart
+**/api_keys.dart

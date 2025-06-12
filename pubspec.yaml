@@ -37,6 +37,7 @@ dependencies:
   logger: ^2.5.0
   google_sign_in: ^6.3.0
   webview_flutter: ^4.13.0
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:

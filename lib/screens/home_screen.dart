@@ -118,46 +118,53 @@ class _HomeScreenState extends State<HomeScreen> {
       drawer: _buildDrawer(context, isDarkMode, textColor),
       body: Column(
         children: [
-          if (_currentIndex == 0 || (_currentIndex >= 5 && _currentIndex <= 13))
+          if (_currentIndex == 0 ||
+              (_currentIndex >= 5 &&
+                  _currentIndex <= 13 &&
+                  _currentIndex != 14))
             _buildSemesterButtons(isDarkMode, localizations),
           Expanded(child: widget.pages[_currentIndex]),
         ],
       ),
-      bottomNavigationBar: CurvedNavigationBar(
-        items: <Widget>[
-          Icon(Icons.home, size: 30, color: iconColor),
-          Icon(Icons.play_circle_fill, size: 30, color: iconColor),
-          Icon(Icons.search, size: 30, color: iconColor),
-          Icon(Icons.favorite, size: 30, color: iconColor),
-          Icon(Icons.person, size: 30, color: iconColor),
-        ],
-        color: isDarkMode ? const Color(0xFF1F1F1F) : Colors.blue,
-        buttonBackgroundColor: isDarkMode ? Colors.purple : Colors.white,
-        backgroundColor: Colors.transparent,
-        animationCurve: Curves.easeInOut,
-        animationDuration: const Duration(milliseconds: 300),
-        onTap: (index) {
-          // If user taps on the search icon in bottom nav
-          if (index == 2) {
-            // Always navigate to search page
-            _handleIndexChanged(index);
-            // Don't toggle search UI when already on search page
-          } else {
-            // For other icons, just navigate normally
-            _handleIndexChanged(index);
-            // Close search if active
-            if (_isSearching) {
-              setState(() {
-                _isSearching = false;
-              });
-            }
-          }
-        },
-        index:
-            _currentIndex < 5
-                ? _currentIndex
-                : 0, // Ensure proper tab highlighting
-      ),
+      bottomNavigationBar:
+          _currentIndex == 14
+              ? null
+              : CurvedNavigationBar(
+                items: <Widget>[
+                  Icon(Icons.home, size: 30, color: iconColor),
+                  Icon(Icons.play_circle_fill, size: 30, color: iconColor),
+                  Icon(Icons.search, size: 30, color: iconColor),
+                  Icon(Icons.favorite, size: 30, color: iconColor),
+                  Icon(Icons.person, size: 30, color: iconColor),
+                ],
+                color: isDarkMode ? const Color(0xFF1F1F1F) : Colors.blue,
+                buttonBackgroundColor:
+                    isDarkMode ? Colors.purple : Colors.white,
+                backgroundColor: Colors.transparent,
+                animationCurve: Curves.easeInOut,
+                animationDuration: const Duration(milliseconds: 300),
+                onTap: (index) {
+                  // If user taps on the search icon in bottom nav
+                  if (index == 2) {
+                    // Always navigate to search page
+                    _handleIndexChanged(index);
+                    // Don't toggle search UI when already on search page
+                  } else {
+                    // For other icons, just navigate normally
+                    _handleIndexChanged(index);
+                    // Close search if active
+                    if (_isSearching) {
+                      setState(() {
+                        _isSearching = false;
+                      });
+                    }
+                  }
+                },
+                index:
+                    _currentIndex < 5
+                        ? _currentIndex
+                        : 0, // Ensure proper tab highlighting
+              ),
     );
   }
 
@@ -291,6 +298,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     builder: (context) => const GlobalChatScreen(),
                   ),
                 );
+              },
+            ),
+            ListTile(
+              title: Text('AI', style: textStyle),
+              leading: Icon(Icons.smart_toy, color: Colors.white),
+              onTap: () {
+                Navigator.pop(context);
+                _handleIndexChanged(14);
               },
             ),
           ],

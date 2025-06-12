@@ -9,6 +9,7 @@ import 'screens/youtube_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/favorites_screen.dart';
 import 'screens/extra_courses_screen.dart';
+import 'screens/ai_chat_screen.dart';
 import 'utils/theme_provider.dart';
 import 'utils/language_provider.dart';
 import 'utils/app_localizations.dart';
@@ -112,6 +113,7 @@ class MyAppState extends State<MyApp> {
       const BcaSemesterPage(semester: 7, notes: 'Notes for BCA 7th Semester'),
       const BcaSemesterPage(semester: 8, notes: 'Notes for BCA 8th Semester'),
       const ExtraCoursesScreen(),
+      const AIChatScreen(),
     ];
 
     // Create the home widget based on login status
