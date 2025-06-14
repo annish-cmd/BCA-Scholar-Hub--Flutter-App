@@ -165,7 +165,6 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
   // Show message options menu
   void _showMessageOptions(BuildContext context, ChatMessage message) {
     final canDelete = _chatService.canDeleteMessage(message);
-    final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
 
     showModalBottomSheet(
       context: context,

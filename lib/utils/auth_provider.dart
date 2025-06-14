@@ -23,6 +23,11 @@ class AuthProvider with ChangeNotifier {
     });
   }
 
+  // Method to notify listeners when profile is updated
+  void updateProfile() {
+    notifyListeners();
+  }
+
   // Sign in with email and password
   Future<UserCredential> login(String email, String password) async {
     try {

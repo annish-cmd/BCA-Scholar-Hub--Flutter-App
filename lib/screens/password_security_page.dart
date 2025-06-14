@@ -121,7 +121,6 @@ class _PasswordSecurityPageState extends State<PasswordSecurityPage> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final authProvider = Provider.of<AuthProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
     final textColor = isDarkMode ? Colors.white : Colors.black;
     final cardColor = isDarkMode ? const Color(0xFF1F1F1F) : Colors.white;

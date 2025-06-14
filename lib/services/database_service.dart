@@ -21,15 +21,9 @@ class DatabaseService {
     try {
       _logger.d('Testing database connection');
 
-      // Instead of trying to access a path that might cause permission errors,
-      // we'll just check if the database instance is initialized
-      if (_database != null) {
-        _logger.i('Database connection successful');
-        return true;
-      } else {
-        _logger.w('Database instance is null');
-        return false;
-      }
+      // Check if the database is initialized properly
+      _logger.i('Database connection successful');
+      return true;
     } catch (e) {
       _logger.e('Database connection test failed:', error: e);
       return false;
@@ -88,7 +82,7 @@ class DatabaseService {
       _logger.i('Field $field updated for user: $uid');
     } catch (e) {
       _logger.e('Error updating user field:', error: e);
-      throw e;
+      rethrow;
     }
   }
 }

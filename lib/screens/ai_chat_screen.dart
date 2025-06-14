@@ -7,7 +7,6 @@ import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
 import '../utils/theme_provider.dart';
-import '../utils/app_localizations.dart';
 import '../main.dart';
 import 'home_screen.dart';
 import '../config/api_keys.dart'; // Import the API keys config
@@ -70,91 +69,6 @@ class _AIChatScreenState extends State<AIChatScreen>
     }
     _currentApiKeyIndex = 0;
     debugPrint('All API keys reset');
-  }
-
-  // Testing API key and model
-  Future<void> _testApiConnection() async {
-    setState(() {
-      _isTyping = true;
-      // Don't show testing message to the user
-    });
-
-    try {
-      debugPrint(
-        'Testing API connection with key: ${_currentApiKey.substring(0, 10)}...',
-      );
-      debugPrint('Using model: $_model');
-
-      final response = await http.post(
-        Uri.parse(_apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_currentApiKey',
-          'HTTP-Referer': 'https://bca-scholar-hub.com',
-          'X-Title': 'BCA Scholar Hub',
-        },
-        body: jsonEncode({
-          'model': _model,
-          'messages': [
-            {
-              'role': 'system',
-              'content':
-                  'You are a helpful assistant for BCA students. Keep responses brief and simple.',
-            },
-            {'role': 'user', 'content': 'Hello, are you working?'},
-          ],
-          'temperature': 0.6,
-          'max_tokens': 100,
-        }),
-      );
-
-      debugPrint('API Response Status Code: ${response.statusCode}');
-      debugPrint('API Response Body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final aiResponse = data['choices'][0]['message']['content'];
-        setState(() {
-          _messages.add(
-            ChatMessage(
-              text:
-                  "👋 Hello! I am BCA Scholar Hub AI Assistant. How can I help you today?",
-              isUser: false,
-            ),
-          );
-          _isTyping = false;
-        });
-        _scrollToBottom();
-      } else {
-        setState(() {
-          // Show error message only in debug logs, not to the user
-          debugPrint("❌ API Error: ${response.statusCode} - ${response.body}");
-          _messages.add(
-            ChatMessage(
-              text:
-                  "I'm having trouble connecting to the AI service. Please try again later.",
-              isUser: false,
-            ),
-          );
-          _isTyping = false;
-        });
-        _scrollToBottom();
-      }
-    } catch (e) {
-      debugPrint('API Connection Error: $e');
-      setState(() {
-        // Show user-friendly error message
-        _messages.add(
-          ChatMessage(
-            text:
-                "I'm having trouble connecting. Please check your internet connection and try again.",
-            isUser: false,
-          ),
-        );
-        _isTyping = false;
-      });
-      _scrollToBottom();
-    }
   }
 
   @override
@@ -375,11 +289,11 @@ class _AIChatScreenState extends State<AIChatScreen>
           'API Response Data: ${response.body.substring(0, min(100, response.body.length))}...',
         );
 
-        final aiResponse = data['choices'][0]['message']['content'];
+        final String responseContent = data['choices'][0]['message']['content'];
 
-        if (aiResponse != null && aiResponse.toString().isNotEmpty) {
+        if (responseContent.isNotEmpty) {
           // Process the response to ensure it's properly formatted
-          final processedResponse = _processAIResponse(aiResponse.toString());
+          final processedResponse = _processAIResponse(responseContent);
 
           setState(() {
             _messages.add(ChatMessage(text: processedResponse, isUser: false));
@@ -466,9 +380,11 @@ class _AIChatScreenState extends State<AIChatScreen>
     final backgroundColor =
         isDarkMode ? const Color(0xFF121212) : const Color(0xFFF0F2F5);
 
-    return WillPopScope(
-      onWillPop: () async {
-        // If we reach here, the PopScope has prevented default back behavior
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+
         // Navigate back to home screen instead of exiting the app
         // Get the pages list from main app
         final List<Widget> pages = myAppKey.currentState?.getPages() ?? [];
@@ -487,7 +403,6 @@ class _AIChatScreenState extends State<AIChatScreen>
                 ),
           ),
         );
-        return false;
       },
       child: Scaffold(
         appBar: AppBar(

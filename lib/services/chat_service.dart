@@ -45,7 +45,7 @@ class ChatService {
       _logger.i('Message sent successfully');
     } catch (e) {
       _logger.e('Error sending message: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -75,7 +75,7 @@ class ChatService {
       });
     } catch (e) {
       _logger.e('Error getting messages stream: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -99,7 +99,7 @@ class ChatService {
       _logger.i('Message deleted successfully');
     } catch (e) {
       _logger.e('Error deleting message: $e');
-      throw e;
+      rethrow;
     }
   }
 

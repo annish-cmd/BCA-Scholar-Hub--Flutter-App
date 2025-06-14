@@ -116,7 +116,9 @@ class _ProfileInfoPageState extends State<ProfileInfoPage> {
         });
 
         // Notify listeners to update UI elsewhere
-        Provider.of<AuthProvider>(context, listen: false).notifyListeners();
+        if (mounted) {
+          Provider.of<AuthProvider>(context, listen: false).updateProfile();
+        }
       }
     } catch (e) {
       if (mounted) {
