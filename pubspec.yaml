@@ -63,8 +63,8 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/anish_library.jpg"
+  image_path: "assets/images/BCA1.png"
   adaptive_icon_background: "#ffffff"
-  adaptive_icon_foreground: "assets/images/anish_library.jpg"
+  adaptive_icon_foreground: "assets/images/BCA1.png"
   min_sdk_android: 21
   remove_alpha_ios: true

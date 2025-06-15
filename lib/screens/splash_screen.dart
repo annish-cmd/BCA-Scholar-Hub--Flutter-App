@@ -222,7 +222,7 @@ class _SplashScreenState extends State<SplashScreen>
                               },
                               blendMode: BlendMode.softLight,
                               child: Image.asset(
-                                'assets/images/anish_library.jpg',
+                                'assets/images/BCA1.png',
                                 fit: BoxFit.cover,
                               ),
                             ),

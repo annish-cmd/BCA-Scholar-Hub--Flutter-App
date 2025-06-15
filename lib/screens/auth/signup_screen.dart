@@ -190,7 +190,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(25),
                         child: Image.asset(
-                          'assets/images/anish_library.jpg',
+                          'assets/images/BCA1.png',
                           fit: BoxFit.cover,
                         ),
                       ),
