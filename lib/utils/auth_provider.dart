@@ -4,12 +4,14 @@ import 'package:logger/logger.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../services/database_service.dart';
+import '../services/chat_service.dart';
 
 class AuthProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
   final Logger _logger = Logger();
   final DatabaseService _databaseService = DatabaseService();
+  final ChatService _chatService = ChatService();
 
   bool get isLoggedIn => _auth.currentUser != null;
   String? get userEmail => _auth.currentUser?.email;
@@ -19,8 +21,34 @@ class AuthProvider with ChangeNotifier {
     // Listen for auth state changes
     _auth.authStateChanges().listen((User? user) {
       _logger.d('Auth state changed: ${user?.email}');
+      if (user != null) {
+        // Initialize encryption when user logs in
+        _initializeEncryption();
+      }
       notifyListeners();
     });
+  }
+  
+  // Initialize encryption for current user
+  Future<void> _initializeEncryption() async {
+    try {
+      if (_auth.currentUser == null) {
+        _logger.w('Cannot initialize encryption: No user is logged in');
+        return;
+      }
+      
+      // Wait for a brief moment to allow Firebase to fully authenticate
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // The ChatService should handle encryption initialization on its own,
+      // but we'll force a state refresh here to ensure the UI updates
+      notifyListeners();
+      _logger.i('Encryption initialization triggered for user: ${_auth.currentUser?.email}');
+    } catch (e) {
+      _logger.e('Failed to initialize encryption: $e');
+      // Continue even if encryption initialization fails
+      // The chat service has fallback to unencrypted messages
+    }
   }
 
   // Method to notify listeners when profile is updated
@@ -63,6 +91,8 @@ class AuthProvider with ChangeNotifier {
       // Save user data to Realtime Database
       if (userCredential.user != null) {
         await _databaseService.saveUserData(userCredential.user!);
+        // Initialize encryption
+        await _initializeEncryption();
       }
 
       _logger.i('Login successful for user: ${userCredential.user?.email}');
@@ -127,6 +157,9 @@ class AuthProvider with ChangeNotifier {
 
         // Save user data to Realtime Database
         await _databaseService.saveUserData(userCredential.user!, name: name);
+        
+        // Initialize encryption
+        await _initializeEncryption();
       }
 
       _logger.i('Signup successful for user: ${userCredential.user?.email}');
@@ -191,6 +224,8 @@ class AuthProvider with ChangeNotifier {
       // Save user data to Realtime Database
       if (userCredential.user != null) {
         await _databaseService.saveUserData(userCredential.user!);
+        // Initialize encryption
+        await _initializeEncryption();
       }
 
       notifyListeners();

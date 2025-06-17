@@ -1,81 +1,212 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:logger/logger.dart';
+import 'package:flutter/foundation.dart';
 import '../models/chat_message.dart';
+import '../utils/encryption/encryption_service.dart';
 
-class ChatService {
+class ChatService extends ChangeNotifier {
   final Logger _logger = Logger();
   final FirebaseDatabase _database = FirebaseDatabase.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final EncryptionService _encryptionService = EncryptionService();
+  bool _isEncryptionInitialized = false;
 
   // Initialize Firebase Database URL
   ChatService() {
     _database.databaseURL =
         'https://bcalibraryapp-default-rtdb.asia-southeast1.firebasedatabase.app/';
+    _checkEncryptionStatus();
   }
+
+  // Check if encryption is initialized
+  Future<void> _checkEncryptionStatus() async {
+    try {
+      await _encryptionService.initializeUserKeys();
+      _isEncryptionInitialized = true;
+      notifyListeners();
+    } catch (e) {
+      _logger.e('Error initializing encryption: $e');
+      _isEncryptionInitialized = false;
+      notifyListeners();
+    }
+  }
+
+  // Get encryption status
+  bool get isEncryptionInitialized => _isEncryptionInitialized;
 
   // Reference to the global chat collection
   DatabaseReference get _chatRef => _database.ref('global_chat');
 
   // Send a message to the global chat
-  Future<void> sendMessage(String text, {ChatMessage? replyTo}) async {
+  Future<bool> sendMessage(String messageText, {String? replyToId}) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        _logger.w('Cannot send message: No user logged in');
-        throw Exception('You must be logged in to send messages');
+        _logger.e('User not logged in');
+        return false;
       }
 
-      // Create a new message
-      final message = ChatMessage(
-        id: '', // Will be set by Firebase
-        userId: user.uid,
-        userName:
-            user.displayName ?? user.email?.split('@').first ?? 'Anonymous',
-        text: text,
-        timestamp: DateTime.now().millisecondsSinceEpoch,
-        userPhotoUrl: user.photoURL,
-        replyToId: replyTo?.id,
-        replyToUserName: replyTo?.userName,
-        replyToText: replyTo?.text,
-      );
+      final messageRef = _chatRef.push();
+      final messageId = messageRef.key!;
+      
+      Map<String, dynamic> messageData = {
+        'userId': user.uid,
+        'userName': user.displayName ?? user.email?.split('@')[0] ?? 'Anonymous',
+        'userPhotoUrl': user.photoURL,
+        'timestamp': ServerValue.timestamp,
+        'isEncrypted': false,
+        'text': messageText,
+      };
+      
+      if (replyToId != null) {
+        messageData['replyToId'] = replyToId;
+      }
 
-      // Push the message to Firebase
-      await _chatRef.push().set(message.toMap());
+      // Try to encrypt the message if encryption is initialized
+      if (_isEncryptionInitialized) {
+        try {
+          final encryptedData = await _encryptionService.encryptGlobalChatMessage(messageText);
+          
+          messageData['isEncrypted'] = true;
+          messageData['text'] = '';
+          messageData['cipherText'] = encryptedData['cipherText'];
+          messageData['iv'] = encryptedData['iv'];
+          messageData['encryptedKeys'] = encryptedData['encryptedKeys'];
+          
+          _logger.i('Message encrypted successfully');
+        } catch (e) {
+          _logger.w('Failed to encrypt message, sending as plaintext: $e');
+          messageData['isEncrypted'] = false;
+          messageData['text'] = messageText;
+        }
+      } else {
+        _logger.w('Encryption not initialized, sending plaintext message');
+      }
+
+      // Send message to Firebase
+      await messageRef.set(messageData);
       _logger.i('Message sent successfully');
+      notifyListeners();
+      return true;
     } catch (e) {
       _logger.e('Error sending message: $e');
-      rethrow;
+      return false;
     }
   }
 
   // Get a stream of messages from the global chat
   Stream<List<ChatMessage>> getMessagesStream() {
-    try {
-      // Query messages, ordered by timestamp, limited to last 100
-      final query = _chatRef.orderByChild('timestamp').limitToLast(100);
+    return _chatRef
+        .orderByChild('timestamp')
+        .limitToLast(100)
+        .onValue
+        .map((event) {
+          final data = event.snapshot.value;
+          if (data == null) return [];
 
-      // Convert the Firebase events to a stream of ChatMessage lists
-      return query.onValue.map((event) {
-        final List<ChatMessage> messages = [];
-        final data = event.snapshot.value as Map<dynamic, dynamic>?;
+          final messagesMap = data as Map<dynamic, dynamic>;
+          final List<ChatMessage> messages = [];
 
-        if (data != null) {
-          data.forEach((key, value) {
-            if (value is Map<dynamic, dynamic>) {
-              messages.add(ChatMessage.fromMap(key, value));
+          messagesMap.forEach((key, value) {
+            try {
+              final message = ChatMessage.fromMap(key.toString(), value);
+              
+              // Always add the message first to have it displayed immediately
+              messages.add(message);
+              
+              // Try to decrypt the message if it's encrypted
+              if (message.isEncrypted && _isEncryptionInitialized) {
+                // Handle decryption for the current user
+                decryptMessage(message).then((decryptedText) {
+                  if (decryptedText != null) {
+                    // Find the message in the list and replace with decrypted version
+                    final index = messages.indexWhere((m) => m.id == message.id);
+                    if (index >= 0) {
+                      messages[index] = ChatMessage(
+                        id: message.id,
+                        userId: message.userId,
+                        userName: message.userName,
+                        text: decryptedText,
+                        timestamp: message.timestamp,
+                        userPhotoUrl: message.userPhotoUrl,
+                        replyToId: message.replyToId,
+                        replyToUserName: message.replyToUserName,
+                        replyToText: message.replyToText,
+                        isEncrypted: message.isEncrypted,
+                        cipherText: message.cipherText,
+                        iv: message.iv,
+                        encryptedKeys: message.encryptedKeys,
+                      );
+                      notifyListeners();
+                    }
+                  }
+                }).catchError((error) {
+                  // Silently handle decryption errors without showing in UI
+                  _logger.w('Decryption error for message ${message.id}: $error');
+                });
+              }
+            } catch (e) {
+              _logger.e('Error parsing message: $e');
+              // Don't propagate parsing errors to the UI
             }
           });
 
-          // Sort messages by timestamp (newest last)
           messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-        }
+          return messages;
+        });
+  }
 
-        return messages;
-      });
+  // Decrypt a message for the current user
+  Future<String?> decryptMessage(ChatMessage message) async {
+    if (!message.isEncrypted) return message.text;
+    if (message.cipherText == null || message.iv == null || message.encryptedKeys == null) {
+      return message.text.isNotEmpty ? message.text : "";
+    }
+    
+    try {
+      // Check if encryption is initialized
+      if (!_isEncryptionInitialized) {
+        await _checkEncryptionStatus();
+        if (!_isEncryptionInitialized) {
+          return "";
+        }
+      }
+      
+      // Check if the current user has a key for this message
+      final user = _auth.currentUser;
+      if (user == null) {
+        return "";
+      }
+      
+      // Make sure to handle null keys safely
+      Map<String, String> encryptedKeys;
+      try {
+        encryptedKeys = Map<String, String>.from(message.encryptedKeys!);
+        if (!encryptedKeys.containsKey(user.uid)) {
+          return "";
+        }
+      } catch (e) {
+        _logger.e('Invalid encryptedKeys format: $e');
+        return "";
+      }
+      
+      final decryptedText = await _encryptionService.decryptGlobalChatMessage(
+        message.cipherText!,
+        message.iv!,
+        encryptedKeys,
+      );
+      
+      if (decryptedText != null && decryptedText.isNotEmpty) {
+        notifyListeners();
+        return decryptedText;
+      } else {
+        return "";
+      }
     } catch (e) {
-      _logger.e('Error getting messages stream: $e');
-      rethrow;
+      _logger.e('Error decrypting message: $e');
+      // Return original text if available, or an empty string (NOT an error message)
+      return message.text.isNotEmpty ? message.text : "";
     }
   }
 
@@ -97,6 +228,7 @@ class ChatService {
       // Delete the message
       await _chatRef.child(message.id).remove();
       _logger.i('Message deleted successfully');
+      notifyListeners();
     } catch (e) {
       _logger.e('Error deleting message: $e');
       rethrow;

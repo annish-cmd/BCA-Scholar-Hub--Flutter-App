@@ -6,11 +6,93 @@
         ".write": "$uid === auth.uid"
       }
     },
-    "connectionTest": {
+    "public_keys": {
       ".read": "auth != null",
-      ".write": false
+      ".write": "auth != null",
+      "$uid": {
+        ".validate": "newData.hasChildren(['key']) || newData.hasChild('key')",
+        "key": {
+          ".validate": "newData.isString()"
+        }
+      }
     },
-    ".read": false,
-    ".write": false
+    "admins": {
+      "$uid": {
+        ".read": "$uid === auth.uid || root.child('admins').child(auth.uid).exists()",
+        ".write": "$uid === auth.uid || root.child('admins').child(auth.uid).exists()"
+      },
+      ".read": "root.child('admins').child(auth.uid).exists()",
+      ".write": "root.child('admins').child(auth.uid).exists()"
+    },
+    "admin_settings": {
+      ".read": "root.child('admins').child(auth.uid).exists()",
+      ".write": "root.child('admins').child(auth.uid).exists()"
+    },
+    "admin_logs": {
+      ".read": "root.child('admins').child(auth.uid).exists()",
+      ".write": "root.child('admins').child(auth.uid).exists()",
+      "$log_id": {
+        ".validate": "newData.hasChildren(['adminId', 'action', 'timestamp'])",
+        "adminId": {
+          ".validate": "newData.isString() && newData.val() === auth.uid"
+        },
+        "action": {
+          ".validate": "newData.isString()"
+        },
+        "details": {
+          ".validate": "newData.isString() || newData.val() == null"
+        },
+        "timestamp": {
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "global_chat": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      ".indexOn": ["timestamp"],
+      "$message_id": {
+        ".validate": "newData.hasChildren(['userId', 'userName', 'timestamp'])",
+        "userId": {
+          ".validate": "newData.isString() && newData.val() === auth.uid"
+        },
+        "userName": {
+          ".validate": "newData.isString()"
+        },
+        "text": {
+          ".validate": "newData.isString() || newData.val() == null"
+        },
+        "timestamp": {
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        },
+        "userPhotoUrl": {
+          ".validate": "newData.isString() || newData.val() == null"
+        },
+        "replyToId": {
+          ".validate": "newData.isString() || newData.val() == null"
+        },
+        "replyToUserName": {
+          ".validate": "newData.isString() || newData.val() == null"
+        },
+        "replyToText": {
+          ".validate": "newData.isString() || newData.val() == null"
+        },
+        "cipherText": {
+          ".validate": "newData.isString() || newData.val() == null"
+        },
+        "iv": {
+          ".validate": "newData.isString() || newData.val() == null"
+        },
+        "encryptedKeys": {
+          ".validate": "true"
+        },
+        "isEncrypted": {
+          ".validate": "newData.isBoolean() || newData.val() == null"
+        }
+      }
+    }
   }
 } 

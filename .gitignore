@@ -34,6 +34,9 @@ migrate_working_dir/
 *.dill
 *.dill.track.dill
 
+# API Keys
+**/config/api_keys.dart
+
 # Platform specific
 **/ios/Flutter/ephemeral/
 **/macos/Flutter/ephemeral/
