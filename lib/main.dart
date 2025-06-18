@@ -21,7 +21,6 @@ import 'services/chat_service.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
-import 'firebase_options.dart';
 
 // Global key for app state access
 final GlobalKey<MyAppState> myAppKey = GlobalKey<MyAppState>();
@@ -33,9 +32,7 @@ void main() async {
   try {
     // Check if Firebase is already initialized
     if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
+      await Firebase.initializeApp();
     }
 
     // Initialize Firebase Analytics but don't store the variable

@@ -11,12 +11,25 @@ class ChatService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final EncryptionService _encryptionService = EncryptionService();
   bool _isEncryptionInitialized = false;
+  List<ChatMessage> _cachedMessages = [];
+  bool _isLoadingMessages = false;
 
-  // Initialize Firebase Database URL
+  // Initialize Firebase Database URL and eagerly load messages
   ChatService() {
     _database.databaseURL =
         'https://bcalibraryapp-default-rtdb.asia-southeast1.firebasedatabase.app/';
     _checkEncryptionStatus();
+
+    // Start eagerly loading messages
+    _eagerlyLoadMessages();
+
+    // Set up auth state listener to reload messages when user logs in
+    _auth.authStateChanges().listen((user) {
+      if (user != null) {
+        // User logged in, refresh messages
+        _eagerlyLoadMessages();
+      }
+    });
   }
 
   // Check if encryption is initialized
@@ -42,6 +55,82 @@ class ChatService extends ChangeNotifier {
 
   // Reference to the global chat collection
   DatabaseReference get _chatRef => _database.ref('global_chat');
+
+  // Eagerly load messages to ensure they're available when needed
+  Future<void> _eagerlyLoadMessages() async {
+    if (_isLoadingMessages) return;
+
+    _isLoadingMessages = true;
+    try {
+      final snapshot =
+          await _chatRef.orderByChild('timestamp').limitToLast(100).get();
+
+      if (snapshot.exists && snapshot.value != null) {
+        final data = snapshot.value as Map<dynamic, dynamic>;
+        final List<ChatMessage> messages = [];
+
+        data.forEach((key, value) {
+          try {
+            final message = ChatMessage.fromMap(key.toString(), value);
+            messages.add(message);
+          } catch (e) {
+            _logger.e('Error parsing eager message: $e');
+          }
+        });
+
+        messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+        _cachedMessages = messages;
+
+        // Start decrypting messages in the background
+        _decryptCachedMessages();
+
+        notifyListeners();
+      }
+    } catch (e) {
+      _logger.e('Error eagerly loading messages: $e');
+    } finally {
+      _isLoadingMessages = false;
+    }
+  }
+
+  // Decrypt cached messages in the background
+  Future<void> _decryptCachedMessages() async {
+    if (!_isEncryptionInitialized) {
+      await _checkEncryptionStatus();
+    }
+
+    if (!_isEncryptionInitialized || _cachedMessages.isEmpty) return;
+
+    for (int i = 0; i < _cachedMessages.length; i++) {
+      final message = _cachedMessages[i];
+      if (message.isEncrypted) {
+        try {
+          final decryptedText = await decryptMessage(message);
+          if (decryptedText != null && decryptedText.isNotEmpty) {
+            _cachedMessages[i] = ChatMessage(
+              id: message.id,
+              userId: message.userId,
+              userName: message.userName,
+              text: decryptedText,
+              timestamp: message.timestamp,
+              userPhotoUrl: message.userPhotoUrl,
+              replyToId: message.replyToId,
+              replyToUserName: message.replyToUserName,
+              replyToText: message.replyToText,
+              isEncrypted: message.isEncrypted,
+              cipherText: message.cipherText,
+              iv: message.iv,
+              encryptedKeys: message.encryptedKeys,
+            );
+          }
+        } catch (e) {
+          _logger.w('Error decrypting cached message: $e');
+        }
+      }
+    }
+
+    notifyListeners();
+  }
 
   // Send a message to the global chat
   Future<bool> sendMessage(String messageText, {String? replyToId}) async {
@@ -260,6 +349,48 @@ class ChatService extends ChangeNotifier {
       _logger.e('Error deleting message: $e');
       rethrow;
     }
+  }
+
+  // Get cached messages for immediate display
+  Future<List<ChatMessage>> getCachedMessages() async {
+    // If we already have cached messages, return them immediately
+    if (_cachedMessages.isNotEmpty) {
+      return _cachedMessages;
+    }
+
+    // Otherwise try to load them
+    try {
+      // First try to get the most recent messages from Firebase
+      final snapshot =
+          await _chatRef.orderByChild('timestamp').limitToLast(50).get();
+
+      if (snapshot.exists && snapshot.value != null) {
+        final data = snapshot.value as Map<dynamic, dynamic>;
+        final List<ChatMessage> messages = [];
+
+        data.forEach((key, value) {
+          try {
+            final message = ChatMessage.fromMap(key.toString(), value);
+            messages.add(message);
+          } catch (e) {
+            _logger.e('Error parsing cached message: $e');
+          }
+        });
+
+        messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+        _cachedMessages = messages;
+
+        // Start decrypting in the background
+        _decryptCachedMessages();
+
+        return messages;
+      }
+    } catch (e) {
+      _logger.e('Error getting cached messages: $e');
+    }
+
+    // Return empty list if no cached messages or error
+    return [];
   }
 
   // Check if current user can delete a message

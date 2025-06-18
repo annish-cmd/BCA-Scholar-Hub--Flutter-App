@@ -35,14 +35,55 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
   void initState() {
     super.initState();
     _chatService = Provider.of<ChatService>(context, listen: false);
-    _loadMessages();
-    _checkEncryptionStatus();
-    // Clear any existing error messages on start
-    _errorMessage = '';
+
+    // Show loading indicator immediately
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Immediately load cached messages first (this should be very fast)
+    _loadMessagesImmediately();
   }
 
-  // Load messages from the chat service
-  void _loadMessages() {
+  // Load messages with high priority
+  Future<void> _loadMessagesImmediately() async {
+    try {
+      // Use the optimized cached messages method
+      final cachedMessages = await _chatService.getCachedMessages();
+
+      if (mounted) {
+        setState(() {
+          if (cachedMessages.isNotEmpty) {
+            _messages = cachedMessages;
+            _isLoading = false;
+          }
+        });
+
+        // Scroll to bottom after cached messages are loaded
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
+      }
+
+      // Now set up the real-time listener for new messages
+      _setupMessageListener();
+
+      // Check encryption status in parallel
+      _checkEncryptionStatus();
+
+      // Clear any existing error messages
+      _errorMessage = '';
+    } catch (e) {
+      _logger.e('Error in _loadMessagesImmediately: $e');
+
+      // Even if this fails, still set up the message listener
+      _setupMessageListener();
+      _checkEncryptionStatus();
+    }
+  }
+
+  // Set up real-time listener for message updates
+  void _setupMessageListener() {
     _chatService.getMessagesStream().listen(
       (messages) {
         if (mounted) {
@@ -60,9 +101,10 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
       onError: (error) {
         if (mounted) {
           setState(() {
-            _errorMessage = error.toString();
+            _errorMessage = 'Error loading messages. Please try again.';
             _isLoading = false;
           });
+          _logger.e('Error in message stream: $error');
         }
       },
     );
@@ -537,18 +579,52 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
             Expanded(
               child:
                   _isLoading
-                      ? const Center(child: CircularProgressIndicator())
+                      ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text(
+                              "Loading messages...",
+                              style: TextStyle(
+                                color:
+                                    isDarkMode
+                                        ? Colors.grey[300]
+                                        : Colors.grey[700],
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
                       : _messages.isEmpty
                       ? Center(
-                        child: Text(
-                          _errorMessage.isNotEmpty
-                              ? _errorMessage
-                              : 'No messages yet.\nStart the conversation!',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 16,
-                          ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.chat_bubble_outline,
+                              size: 48,
+                              color:
+                                  isDarkMode
+                                      ? Colors.grey[400]
+                                      : Colors.grey[600],
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              _errorMessage.isNotEmpty
+                                  ? _errorMessage
+                                  : 'No messages yet.\nStart the conversation!',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color:
+                                    isDarkMode
+                                        ? Colors.grey[400]
+                                        : Colors.grey[600],
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
                         ),
                       )
                       : Stack(
@@ -569,225 +645,253 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                               return AnimatedOpacity(
                                 duration: const Duration(milliseconds: 300),
                                 opacity: isTemporary ? 0.7 : 1.0,
-                                child: GestureDetector(
-                                  onLongPress: () {
-                                    if (!isTemporary) {
-                                      _showMessageOptions(context, message);
-                                    }
-                                  },
-                                  child: Align(
-                                    alignment:
-                                        isCurrentUser
-                                            ? Alignment.centerRight
-                                            : Alignment.centerLeft,
-                                    child: Container(
-                                      margin: const EdgeInsets.only(bottom: 12),
-                                      constraints: BoxConstraints(
-                                        maxWidth:
-                                            MediaQuery.of(context).size.width *
-                                            0.75,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color:
-                                            isCurrentUser
-                                                ? Colors.blue[700]
-                                                : (isDarkMode
-                                                    ? const Color(0xFF2D2D2D)
-                                                    : Colors.grey[200]),
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 10,
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          // Message header (username and time)
-                                          Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  message.userName,
-                                                  style: TextStyle(
-                                                    color:
-                                                        isCurrentUser
-                                                            ? Colors.white
-                                                            : (isDarkMode
-                                                                ? Colors
-                                                                    .blue[200]
-                                                                : Colors
-                                                                    .blue[700]),
-                                                    fontWeight: FontWeight.bold,
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeOutQuint,
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  child: GestureDetector(
+                                    onLongPress: () {
+                                      if (!isTemporary) {
+                                        _showMessageOptions(context, message);
+                                      }
+                                    },
+                                    child: Align(
+                                      alignment:
+                                          isCurrentUser
+                                              ? Alignment.centerRight
+                                              : Alignment.centerLeft,
+                                      child: Container(
+                                        margin: const EdgeInsets.only(
+                                          bottom: 4,
+                                        ),
+                                        constraints: BoxConstraints(
+                                          maxWidth:
+                                              MediaQuery.of(
+                                                context,
+                                              ).size.width *
+                                              0.75,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              isCurrentUser
+                                                  ? Colors.blue[700]
+                                                  : (isDarkMode
+                                                      ? const Color(0xFF2D2D2D)
+                                                      : Colors.grey[200]),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(
+                                                0.05,
+                                              ),
+                                              blurRadius: 3,
+                                              offset: const Offset(0, 1),
+                                            ),
+                                          ],
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 10,
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            // Message header (username and time)
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    message.userName,
+                                                    style: TextStyle(
+                                                      color:
+                                                          isCurrentUser
+                                                              ? Colors.white
+                                                              : (isDarkMode
+                                                                  ? Colors
+                                                                      .blue[200]
+                                                                  : Colors
+                                                                      .blue[700]),
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
                                                   ),
                                                 ),
-                                              ),
-                                              Row(
-                                                children: [
-                                                  // Show encryption indicator
-                                                  if (message.isEncrypted &&
-                                                      !isTemporary)
-                                                    Tooltip(
-                                                      message:
-                                                          'End-to-End Encrypted',
-                                                      child: Icon(
-                                                        Icons.lock,
-                                                        size: 12,
+                                                Row(
+                                                  children: [
+                                                    // Show encryption indicator
+                                                    if (message.isEncrypted &&
+                                                        !isTemporary)
+                                                      Tooltip(
+                                                        message:
+                                                            'End-to-End Encrypted',
+                                                        child: Icon(
+                                                          Icons.lock,
+                                                          size: 12,
+                                                          color:
+                                                              isCurrentUser
+                                                                  ? Colors
+                                                                      .white70
+                                                                  : Colors
+                                                                      .green[300],
+                                                        ),
+                                                      ),
+                                                    if (isTemporary)
+                                                      Container(
+                                                        margin:
+                                                            const EdgeInsets.only(
+                                                              right: 4,
+                                                            ),
+                                                        width: 8,
+                                                        height: 8,
+                                                        child: CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                          color:
+                                                              isCurrentUser
+                                                                  ? Colors
+                                                                      .white70
+                                                                  : Colors
+                                                                      .blue[300],
+                                                        ),
+                                                      ),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      _formatTimestamp(
+                                                        message.timestamp,
+                                                      ),
+                                                      style: TextStyle(
                                                         color:
                                                             isCurrentUser
                                                                 ? Colors.white70
-                                                                : Colors
-                                                                    .green[300],
+                                                                : (isDarkMode
+                                                                    ? Colors
+                                                                        .grey[400]
+                                                                    : Colors
+                                                                        .grey[600]),
+                                                        fontSize: 12,
                                                       ),
                                                     ),
-                                                  if (isTemporary)
-                                                    Container(
-                                                      margin:
-                                                          const EdgeInsets.only(
-                                                            right: 4,
-                                                          ),
-                                                      width: 8,
-                                                      height: 8,
-                                                      child: CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                        color:
-                                                            isCurrentUser
-                                                                ? Colors.white70
-                                                                : Colors
-                                                                    .blue[300],
-                                                      ),
-                                                    ),
-                                                  const SizedBox(width: 4),
-                                                  Text(
-                                                    _formatTimestamp(
-                                                      message.timestamp,
-                                                    ),
-                                                    style: TextStyle(
-                                                      color:
-                                                          isCurrentUser
-                                                              ? Colors.white70
-                                                              : (isDarkMode
-                                                                  ? Colors
-                                                                      .grey[400]
-                                                                  : Colors
-                                                                      .grey[600]),
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-
-                                          // Reply indicator if this is a reply
-                                          if (message.replyToId != null)
-                                            Container(
-                                              margin: const EdgeInsets.only(
-                                                top: 5,
-                                                bottom: 5,
-                                              ),
-                                              padding: const EdgeInsets.all(8),
-                                              decoration: BoxDecoration(
-                                                color:
-                                                    isCurrentUser
-                                                        ? Colors.blue[800]
-                                                        : (isDarkMode
-                                                            ? const Color(
-                                                              0xFF3D3D3D,
-                                                            )
-                                                            : Colors.grey[300]),
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                              ),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    'Reply to ${message.replyToUserName}',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      fontStyle:
-                                                          FontStyle.italic,
-                                                      color:
-                                                          isCurrentUser
-                                                              ? Colors.white70
-                                                              : (isDarkMode
-                                                                  ? Colors
-                                                                      .grey[400]
-                                                                  : Colors
-                                                                      .grey[600]),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    message.replyToText !=
-                                                                null &&
-                                                            message
-                                                                    .replyToText!
-                                                                    .length >
-                                                                50
-                                                        ? '${message.replyToText!.substring(0, 50)}...'
-                                                        : message.replyToText ??
-                                                            '',
-                                                    style: TextStyle(
-                                                      fontSize: 13,
-                                                      color:
-                                                          isCurrentUser
-                                                              ? Colors.white70
-                                                              : (isDarkMode
-                                                                  ? Colors
-                                                                      .grey[300]
-                                                                  : Colors
-                                                                      .grey[800]),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
+                                                  ],
+                                                ),
+                                              ],
                                             ),
 
-                                          const SizedBox(height: 5),
-                                          // Message text with encryption indicator
-                                          Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              if (message.isEncrypted)
-                                                Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                        right: 4,
-                                                        top: 2,
-                                                      ),
-                                                  child: Icon(
-                                                    Icons.lock,
-                                                    size: 12,
-                                                    color:
-                                                        isCurrentUser
-                                                            ? Colors.white70
-                                                            : Colors.grey[600],
-                                                  ),
+                                            // Reply indicator if this is a reply
+                                            if (message.replyToId != null)
+                                              Container(
+                                                margin: const EdgeInsets.only(
+                                                  top: 5,
+                                                  bottom: 5,
                                                 ),
-                                              Expanded(
-                                                child: Text(
-                                                  message.text.isNotEmpty
-                                                      ? message.text
-                                                      : (isTemporary
-                                                          ? 'Sending...'
-                                                          : ''),
-                                                  style: TextStyle(
-                                                    color:
-                                                        isCurrentUser
-                                                            ? Colors.white
-                                                            : textColor,
-                                                  ),
+                                                padding: const EdgeInsets.all(
+                                                  8,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      isCurrentUser
+                                                          ? Colors.blue[800]
+                                                          : (isDarkMode
+                                                              ? const Color(
+                                                                0xFF3D3D3D,
+                                                              )
+                                                              : Colors
+                                                                  .grey[300]),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      'Reply to ${message.replyToUserName}',
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        fontStyle:
+                                                            FontStyle.italic,
+                                                        color:
+                                                            isCurrentUser
+                                                                ? Colors.white70
+                                                                : (isDarkMode
+                                                                    ? Colors
+                                                                        .grey[400]
+                                                                    : Colors
+                                                                        .grey[600]),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      message.replyToText !=
+                                                                  null &&
+                                                              message
+                                                                      .replyToText!
+                                                                      .length >
+                                                                  50
+                                                          ? '${message.replyToText!.substring(0, 50)}...'
+                                                          : message
+                                                                  .replyToText ??
+                                                              '',
+                                                      style: TextStyle(
+                                                        fontSize: 13,
+                                                        color:
+                                                            isCurrentUser
+                                                                ? Colors.white70
+                                                                : (isDarkMode
+                                                                    ? Colors
+                                                                        .grey[300]
+                                                                    : Colors
+                                                                        .grey[800]),
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
-                                            ],
-                                          ),
-                                        ],
+
+                                            const SizedBox(height: 5),
+                                            // Message text with encryption indicator
+                                            Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                if (message.isEncrypted)
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                          right: 4,
+                                                          top: 2,
+                                                        ),
+                                                    child: Icon(
+                                                      Icons.lock,
+                                                      size: 12,
+                                                      color:
+                                                          isCurrentUser
+                                                              ? Colors.white70
+                                                              : Colors
+                                                                  .grey[600],
+                                                    ),
+                                                  ),
+                                                Expanded(
+                                                  child: Text(
+                                                    message.text.isNotEmpty
+                                                        ? message.text
+                                                        : (isTemporary
+                                                            ? 'Sending...'
+                                                            : ''),
+                                                    style: TextStyle(
+                                                      color:
+                                                          isCurrentUser
+                                                              ? Colors.white
+                                                              : textColor,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -798,54 +902,86 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
 
                           // Reply indicator
                           if (_replyingToMessage != null)
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              color:
-                                  isDarkMode
-                                      ? const Color(0xFF2D2D2D)
-                                      : Colors.grey[200],
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.reply, size: 16),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Replying to ${_replyingToMessage!.userName}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        Text(
-                                          _replyingToMessage!.text.isNotEmpty &&
-                                                  _replyingToMessage!
-                                                          .text
-                                                          .length >
-                                                      50
-                                              ? '${_replyingToMessage!.text.substring(0, 50)}...'
-                                              : _replyingToMessage!.text,
-                                          style: TextStyle(
-                                            color:
-                                                isDarkMode
-                                                    ? Colors.grey[400]
-                                                    : Colors.grey[600],
-                                            fontSize: 12,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
+                            Positioned(
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color:
+                                      isDarkMode
+                                          ? const Color(
+                                            0xFF2D2D2D,
+                                          ).withOpacity(0.95)
+                                          : Colors.grey[200]!.withOpacity(0.95),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, -2),
                                     ),
+                                  ],
+                                  borderRadius: const BorderRadius.only(
+                                    topLeft: Radius.circular(12),
+                                    topRight: Radius.circular(12),
                                   ),
-                                  IconButton(
-                                    icon: const Icon(Icons.close, size: 16),
-                                    onPressed: _cancelReply,
-                                  ),
-                                ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.reply,
+                                      size: 16,
+                                      color: Colors.blue,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Replying to ${_replyingToMessage!.userName}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          Text(
+                                            _replyingToMessage!
+                                                        .text
+                                                        .isNotEmpty &&
+                                                    _replyingToMessage!
+                                                            .text
+                                                            .length >
+                                                        50
+                                                ? '${_replyingToMessage!.text.substring(0, 50)}...'
+                                                : _replyingToMessage!.text,
+                                            style: TextStyle(
+                                              color:
+                                                  isDarkMode
+                                                      ? Colors.grey[400]
+                                                      : Colors.grey[600],
+                                              fontSize: 12,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.close, size: 16),
+                                      onPressed: _cancelReply,
+                                      visualDensity: VisualDensity.compact,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 36,
+                                        minHeight: 36,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                         ],
@@ -921,11 +1057,12 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                       decoration: InputDecoration(
                         hintText:
                             _isEncryptionInitialized
-                                ? 'Type a secure message...'
+                                ? 'Type a message...'
                                 : 'Setting up encryption...',
                         hintStyle: TextStyle(
                           color:
                               isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                          fontSize: 14,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
@@ -943,19 +1080,19 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(30),
                           borderSide: BorderSide(
-                            color: isReplyMode ? Colors.green : Colors.purple,
-                            width: 2.0,
+                            color:
+                                isReplyMode
+                                    ? Colors.green
+                                    : Colors.purple.withOpacity(0.5),
+                            width: 1.5,
                           ),
                         ),
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.cancel, size: 18),
-                          onPressed: () {
-                            setState(() {
-                              isReplyMode = false;
-                              replyToMessage = null;
-                              _errorMessage = '';
-                            });
-                          },
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: BorderSide(
+                            color: Colors.blue,
+                            width: 1.5,
+                          ),
                         ),
                       ),
                       textInputAction: TextInputAction.send,
@@ -970,12 +1107,29 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                   Material(
                     color: _isEncryptionInitialized ? Colors.blue : Colors.grey,
                     borderRadius: BorderRadius.circular(24),
+                    elevation: 2,
                     child: InkWell(
                       onTap: _isEncryptionInitialized ? _sendMessage : null,
                       borderRadius: BorderRadius.circular(24),
-                      child: Container(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.all(12),
-                        child: const Icon(Icons.send, color: Colors.white),
+                        decoration: BoxDecoration(
+                          gradient:
+                              _isEncryptionInitialized
+                                  ? const LinearGradient(
+                                    colors: [Colors.blue, Colors.purple],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  )
+                                  : null,
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: const Icon(
+                          Icons.send,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ),
