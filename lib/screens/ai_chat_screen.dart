@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/theme_provider.dart';
 import '../main.dart';
@@ -38,6 +39,9 @@ class _AIChatScreenState extends State<AIChatScreen>
   int _retryCount = 0;
   final int _maxRetries = 2;
   final int _responseTimeout = 15; // Reduced timeout for faster experience
+
+  // Key for storing chat messages in SharedPreferences
+  static const String _chatMessagesKey = 'ai_chat_messages';
 
   // Get current API key
   String get _currentApiKey => _apiKeys[_currentApiKeyIndex];
@@ -83,14 +87,77 @@ class _AIChatScreenState extends State<AIChatScreen>
       vsync: this,
     )..repeat(reverse: true);
 
-    // Start with welcome message directly instead of testing
-    _messages.add(
-      ChatMessage(
-        text:
-            "👋 Hello! I am BCA Scholar Hub AI Assistant. How can I help you today?",
-        isUser: false,
-      ),
-    );
+    // Load saved messages or add welcome message if none exist
+    _loadSavedMessages();
+  }
+
+  // Load saved messages from local storage
+  Future<void> _loadSavedMessages() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedMessagesJson = prefs.getStringList(_chatMessagesKey);
+
+      if (savedMessagesJson != null && savedMessagesJson.isNotEmpty) {
+        setState(() {
+          _messages.clear();
+          for (final messageJson in savedMessagesJson) {
+            final messageMap = jsonDecode(messageJson);
+            _messages.add(
+              ChatMessage(
+                text: messageMap['text'],
+                isUser: messageMap['isUser'],
+              ),
+            );
+          }
+        });
+
+        debugPrint('Loaded ${_messages.length} messages from local storage');
+
+        // Scroll to bottom after loading messages
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
+      } else {
+        // If no saved messages, add the welcome message
+        setState(() {
+          _messages.add(
+            ChatMessage(
+              text:
+                  "👋 Hello! I am BCA Scholar Hub AI Assistant. How can I help you today?",
+              isUser: false,
+            ),
+          );
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading saved messages: $e');
+      // Add welcome message as fallback
+      setState(() {
+        _messages.add(
+          ChatMessage(
+            text:
+                "👋 Hello! I am BCA Scholar Hub AI Assistant. How can I help you today?",
+            isUser: false,
+          ),
+        );
+      });
+    }
+  }
+
+  // Save messages to local storage
+  Future<void> _saveMessages() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final messagesToSave =
+          _messages.map((message) {
+            return jsonEncode({'text': message.text, 'isUser': message.isUser});
+          }).toList();
+
+      await prefs.setStringList(_chatMessagesKey, messagesToSave);
+      debugPrint('Saved ${messagesToSave.length} messages to local storage');
+    } catch (e) {
+      debugPrint('Error saving messages: $e');
+    }
   }
 
   @override
@@ -123,6 +190,9 @@ class _AIChatScreenState extends State<AIChatScreen>
     });
 
     _scrollToBottom();
+
+    // Save messages after adding user message
+    _saveMessages();
 
     // Check for custom responses first
     if (_checkAndHandleCustomResponses(text)) {
@@ -198,6 +268,9 @@ class _AIChatScreenState extends State<AIChatScreen>
           _isTyping = false;
         });
         _scrollToBottom();
+
+        // Save messages after adding custom response
+        _saveMessages();
       }
     });
   }
@@ -299,6 +372,10 @@ class _AIChatScreenState extends State<AIChatScreen>
             _messages.add(ChatMessage(text: processedResponse, isUser: false));
             _isTyping = false;
           });
+
+          // Save messages after adding AI response
+          _saveMessages();
+
           _scrollToBottom();
           return;
         } else {
@@ -327,6 +404,10 @@ class _AIChatScreenState extends State<AIChatScreen>
             );
             _isTyping = false;
           });
+
+          // Save error message
+          _saveMessages();
+
           _scrollToBottom();
           return;
         }
@@ -368,6 +449,10 @@ class _AIChatScreenState extends State<AIChatScreen>
           );
           _isTyping = false;
         });
+
+        // Save fallback message
+        _saveMessages();
+
         _scrollToBottom();
       }
     }
@@ -384,6 +469,9 @@ class _AIChatScreenState extends State<AIChatScreen>
       canPop: false,
       onPopInvoked: (didPop) {
         if (didPop) return;
+
+        // Save messages before navigating away
+        _saveMessages();
 
         // Navigate back to home screen instead of exiting the app
         // Get the pages list from main app
@@ -522,6 +610,16 @@ class _AIChatScreenState extends State<AIChatScreen>
                     );
                   }
                 });
+
+                // Save the reset conversation state
+                _saveMessages();
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Conversation restarted"),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
               },
               tooltip: 'Restart conversation',
             ),
