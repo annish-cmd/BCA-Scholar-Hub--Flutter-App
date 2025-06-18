@@ -87,7 +87,7 @@
           ".validate": "newData.isString() || newData.val() == null"
         },
         "encryptedKeys": {
-          ".validate": "true"
+          ".validate": "newData.val() == null || true"
         },
         "isEncrypted": {
           ".validate": "newData.isBoolean() || newData.val() == null"
