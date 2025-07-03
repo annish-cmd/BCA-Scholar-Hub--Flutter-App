@@ -339,18 +339,16 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
     if (dateTime.year == now.year &&
         dateTime.month == now.month &&
         dateTime.day == now.day) {
-      return DateFormat.jm().format(dateTime); // e.g. "3:30 PM"
+      return DateFormat('h:mm a').format(dateTime); // e.g. "3:30 PM"
     }
 
-    // If the message is from this year, show month and day
+    // If the message is from this year, show month, day and time
     if (dateTime.year == now.year) {
-      return DateFormat('MMM d, jm').format(dateTime); // e.g. "Apr 3, 3:30 PM"
+      return DateFormat('MMM d, h:mm a').format(dateTime); // e.g. "Apr 3, 3:30 PM"
     }
 
-    // Otherwise, show full date
-    return DateFormat(
-      'MMM d, y, jm',
-    ).format(dateTime); // e.g. "Apr 3, 2023, 3:30 PM"
+    // Otherwise, show full date with time
+    return DateFormat('MMM d, y, h:mm a').format(dateTime); // e.g. "Apr 3, 2023, 3:30 PM"
   }
 
   // Clear error message
@@ -672,15 +670,24 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                                               0.75,
                                         ),
                                         decoration: BoxDecoration(
-                                          color:
-                                              isCurrentUser
+                                          color: message.isAdmin
+                                              ? (isDarkMode
+                                                  ? Colors.orange[800]
+                                                  : Colors.orange[100])
+                                              : (isCurrentUser
                                                   ? Colors.blue[700]
                                                   : (isDarkMode
                                                       ? const Color(0xFF2D2D2D)
-                                                      : Colors.grey[200]),
+                                                      : Colors.grey[200])),
                                           borderRadius: BorderRadius.circular(
                                             16,
                                           ),
+                                          border: message.isAdmin
+                                              ? Border.all(
+                                                  color: Colors.orange[600]!,
+                                                  width: 2,
+                                                )
+                                              : null,
                                           boxShadow: [
                                             BoxShadow(
                                               color: Colors.black.withOpacity(
@@ -704,7 +711,9 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
                                                 Expanded(
-                                                  child: Text(
+                                                  child: Row(
+                                                    children: [
+                                                      Text(
                                                     message.userName,
                                                     style: TextStyle(
                                                       color:
@@ -718,6 +727,25 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                                                       fontWeight:
                                                           FontWeight.bold,
                                                     ),
+                                                      ),
+                                                      if (message.isAdmin)
+                                                        Container(
+                                                          margin: const EdgeInsets.only(left: 6),
+                                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                          decoration: BoxDecoration(
+                                                            color: Colors.orange[700],
+                                                            borderRadius: BorderRadius.circular(8),
+                                                          ),
+                                                          child: Text(
+                                                            'ADMIN',
+                                                            style: TextStyle(
+                                                              color: Colors.white,
+                                                              fontSize: 10,
+                                                              fontWeight: FontWeight.bold,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                    ],
                                                   ),
                                                 ),
                                                 Row(

@@ -14,6 +14,9 @@ class ChatMessage {
   final String? iv; // Initialization vector for AES
   final Map<String, dynamic>? encryptedKeys; // User ID -> Encrypted AES key
   final bool isEncrypted; // Flag to indicate if the message is encrypted
+  
+  // Admin field
+  final bool isAdmin; // Flag to indicate if the message is from an admin
 
   ChatMessage({
     required this.id,
@@ -29,12 +32,14 @@ class ChatMessage {
     this.iv,
     this.encryptedKeys,
     this.isEncrypted = false,
+    this.isAdmin = false,
   });
 
   // Create from Firebase data
   factory ChatMessage.fromMap(String id, Map<dynamic, dynamic> data) {
     // Handle encrypted messages
     final bool isEncrypted = data['isEncrypted'] ?? false;
+    final bool isAdmin = data['isAdmin'] ?? false;
     
     return ChatMessage(
       id: id,
@@ -52,6 +57,7 @@ class ChatMessage {
           ? Map<String, dynamic>.from(data['encryptedKeys'])
           : null,
       isEncrypted: isEncrypted,
+      isAdmin: isAdmin,
     );
   }
 
@@ -78,6 +84,11 @@ class ChatMessage {
 
     if (replyToText != null) {
       map['replyToText'] = replyToText!;
+    }
+    
+    // Add admin flag
+    if (isAdmin) {
+      map['isAdmin'] = true;
     }
     
     // Add encryption data if this is an encrypted message

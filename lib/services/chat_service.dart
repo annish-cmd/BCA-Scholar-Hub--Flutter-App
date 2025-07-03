@@ -13,12 +13,14 @@ class ChatService extends ChangeNotifier {
   bool _isEncryptionInitialized = false;
   List<ChatMessage> _cachedMessages = [];
   bool _isLoadingMessages = false;
+  bool _isAdmin = false;
 
   // Initialize Firebase Database URL and eagerly load messages
   ChatService() {
     _database.databaseURL =
         'https://bcalibraryapp-default-rtdb.asia-southeast1.firebasedatabase.app/';
     _checkEncryptionStatus();
+    _checkAdminStatus();
 
     // Start eagerly loading messages
     _eagerlyLoadMessages();
@@ -28,9 +30,36 @@ class ChatService extends ChangeNotifier {
       if (user != null) {
         // User logged in, refresh messages
         _eagerlyLoadMessages();
+        _checkAdminStatus();
       }
     });
   }
+
+  // Check if current user is an admin
+  Future<void> _checkAdminStatus() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        _isAdmin = false;
+        notifyListeners();
+        return;
+      }
+
+      final adminRef = _database.ref('admins').child(user.uid);
+      final snapshot = await adminRef.get();
+      
+      _isAdmin = snapshot.exists;
+      _logger.i('Admin status for ${user.email}: $_isAdmin');
+      notifyListeners();
+    } catch (e) {
+      _logger.e('Error checking admin status: $e');
+      _isAdmin = false;
+      notifyListeners();
+    }
+  }
+
+  // Get admin status
+  bool get isAdmin => _isAdmin;
 
   // Check if encryption is initialized
   Future<void> _checkEncryptionStatus() async {
@@ -153,6 +182,11 @@ class ChatService extends ChangeNotifier {
         'isEncrypted': false,
         'text': messageText,
       };
+
+      // Add admin flag if user is admin
+      if (_isAdmin) {
+        messageData['isAdmin'] = true;
+      }
 
       if (replyToId != null) {
         messageData['replyToId'] = replyToId;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:logger/logger.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -12,21 +13,61 @@ class AuthProvider with ChangeNotifier {
   final Logger _logger = Logger();
   final DatabaseService _databaseService = DatabaseService();
   final ChatService _chatService = ChatService();
+  final FirebaseDatabase _database = FirebaseDatabase.instance;
 
   bool get isLoggedIn => _auth.currentUser != null;
   String? get userEmail => _auth.currentUser?.email;
   User? get currentUser => _auth.currentUser;
+  bool _isAdmin = false;
+  bool get isAdmin => _isAdmin;
 
   AuthProvider() {
+    // Initialize database URL
+    _database.databaseURL =
+        'https://bcalibraryapp-default-rtdb.asia-southeast1.firebasedatabase.app/';
+    
     // Listen for auth state changes
     _auth.authStateChanges().listen((User? user) {
       _logger.d('Auth state changed: ${user?.email}');
       if (user != null) {
         // Initialize encryption when user logs in
         _initializeEncryption();
+        // Check admin status
+        _checkAdminStatus();
+      } else {
+        _isAdmin = false;
+        notifyListeners();
       }
       notifyListeners();
     });
+  }
+
+  // Check if current user is an admin
+  Future<void> _checkAdminStatus() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        _isAdmin = false;
+        notifyListeners();
+        return;
+      }
+
+      final adminRef = _database.ref('admins').child(user.uid);
+      final snapshot = await adminRef.get();
+      
+      _isAdmin = snapshot.exists;
+      _logger.i('Admin status for ${user.email}: $_isAdmin');
+      notifyListeners();
+    } catch (e) {
+      _logger.e('Error checking admin status: $e');
+      _isAdmin = false;
+      notifyListeners();
+    }
+  }
+
+  // Public method to refresh admin status
+  Future<void> refreshAdminStatus() async {
+    await _checkAdminStatus();
   }
   
   // Initialize encryption for current user

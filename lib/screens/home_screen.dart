@@ -219,20 +219,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             ListTile(
-              title: Text('Contact Us', style: textStyle),
-              leading: Icon(Icons.contact_mail, color: Colors.white),
-              onTap: () {
-                // Close the drawer first
-                Navigator.pop(context);
-                // Open website inside the app
-                UrlLauncherUtils.launchInAppWebView(
-                  context,
-                  'https://www.anishchauhan.com.np/',
-                  'Contact Us',
-                );
-              },
-            ),
-            ListTile(
               title: Text('Our Website', style: textStyle),
               leading: Icon(Icons.language, color: Colors.white),
               onTap: () {
@@ -259,25 +245,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   'Facebook Page',
                 );
               },
-            ),
-            ListTile(
-              title: Text('Instagram', style: textStyle),
-              leading: Icon(Icons.photo_camera, color: Colors.white),
-              onTap: () {
-                // Close the drawer first
-                Navigator.pop(context);
-                // Open Instagram profile inside the app
-                UrlLauncherUtils.launchInAppWebView(
-                  context,
-                  'https://www.instagram.com/theannishchauhan_____',
-                  'Instagram',
-                );
-              },
-            ),
-            ListTile(
-              title: Text('BCA Entrance Questions', style: textStyle),
-              leading: Icon(Icons.quiz, color: Colors.white),
-              onTap: () {},
             ),
             ListTile(
               title: Text('Extra Courses', style: textStyle),
