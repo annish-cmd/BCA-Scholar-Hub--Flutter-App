@@ -131,11 +131,19 @@ class ChatService extends ChangeNotifier {
     if (!_isEncryptionInitialized || _cachedMessages.isEmpty) return;
 
     for (int i = 0; i < _cachedMessages.length; i++) {
+      // Check if index is still valid (messages might have changed during async operations)
+      if (i >= _cachedMessages.length) {
+        _logger.w('Index out of range while decrypting cached messages: $i');
+        break;
+      }
+      
       final message = _cachedMessages[i];
       if (message.isEncrypted) {
         try {
           final decryptedText = await decryptMessage(message);
-          if (decryptedText != null && decryptedText.isNotEmpty) {
+          
+          // Check again if index is still valid before updating
+          if (i < _cachedMessages.length && decryptedText != null && decryptedText.isNotEmpty) {
             _cachedMessages[i] = ChatMessage(
               id: message.id,
               userId: message.userId,
@@ -150,10 +158,12 @@ class ChatService extends ChangeNotifier {
               cipherText: message.cipherText,
               iv: message.iv,
               encryptedKeys: message.encryptedKeys,
+              isAdmin: message.isAdmin,
             );
           }
         } catch (e) {
           _logger.w('Error decrypting cached message: $e');
+          // Continue with the next message even if there's an error
         }
       }
     }
@@ -425,6 +435,31 @@ class ChatService extends ChangeNotifier {
 
     // Return empty list if no cached messages or error
     return [];
+  }
+
+  // Force refresh messages
+  Future<void> refreshMessages() async {
+    try {
+      _logger.i('Forcing message refresh');
+      // Make a safe copy of the current messages in case reload fails
+      final previousMessages = List<ChatMessage>.from(_cachedMessages);
+      
+      // Clear cached messages to force a fresh load
+      _cachedMessages = [];
+      
+      // Reload messages with error handling
+      try {
+        await _eagerlyLoadMessages();
+      } catch (loadError) {
+        // If loading fails, restore previous messages
+        _logger.e('Error loading fresh messages: $loadError');
+        _cachedMessages = previousMessages;
+      }
+      
+      notifyListeners();
+    } catch (e) {
+      _logger.e('Error refreshing messages: $e');
+    }
   }
 
   // Check if current user can delete a message

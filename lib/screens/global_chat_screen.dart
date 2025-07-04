@@ -71,6 +71,13 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
       // Check encryption status in parallel
       _checkEncryptionStatus();
 
+      // Force refresh messages after a short delay to ensure all messages are visible
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _chatService.refreshMessages();
+        }
+      });
+
       // Clear any existing error messages
       _errorMessage = '';
     } catch (e) {
@@ -87,15 +94,31 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
     _chatService.getMessagesStream().listen(
       (messages) {
         if (mounted) {
+          final bool shouldScrollToBottom = 
+              _scrollController.hasClients &&
+              (_scrollController.position.maxScrollExtent - _scrollController.offset) < 200;
+          
           setState(() {
             _messages = messages;
             _isLoading = false;
           });
 
-          // Scroll to bottom when new messages arrive
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _scrollToBottom();
-          });
+          // Scroll to bottom when new messages arrive if user was already near bottom
+          if (shouldScrollToBottom) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _scrollToBottom();
+            });
+          }
+          
+          // Always scroll to bottom if a new message arrives in the last 2 seconds
+          final now = DateTime.now().millisecondsSinceEpoch;
+          final hasNewMessage = messages.any((m) => (now - m.timestamp) < 2000);
+          
+          if (hasNewMessage) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _scrollToBottom();
+            });
+          }
         }
       },
       onError: (error) {
@@ -807,6 +830,35 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                                               ],
                                             ),
 
+                                            // Only show "Message from before you joined" when the message is blank due to encryption
+                                            // This happens when the user can't decrypt the message because they weren't present when it was sent
+                                            if (message.isEncrypted && message.text.isEmpty && !isTemporary)
+                                            Container(
+                                              margin: const EdgeInsets.only(top: 4, bottom: 4),
+                                              child: Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.lock,
+                                                    size: 14,
+                                                    color: Colors.amber,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    "Message from before you joined",
+                                                    style: TextStyle(
+                                                      fontStyle: FontStyle.italic,
+                                                      color: isCurrentUser
+                                                          ? Colors.white70
+                                                          : (isDarkMode
+                                                              ? Colors.grey[400]
+                                                              : Colors.grey[600]),
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+
                                             // Reply indicator if this is a reply
                                             if (message.replyToId != null)
                                               Container(
@@ -879,28 +931,12 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                                               ),
 
                                             const SizedBox(height: 5),
-                                            // Message text with encryption indicator
+                                            // Message text (without the extra lock icon)
                                             Row(
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                if (message.isEncrypted)
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                          right: 4,
-                                                          top: 2,
-                                                        ),
-                                                    child: Icon(
-                                                      Icons.lock,
-                                                      size: 12,
-                                                      color:
-                                                          isCurrentUser
-                                                              ? Colors.white70
-                                                              : Colors
-                                                                  .grey[600],
-                                                    ),
-                                                  ),
+                                                // Removed the lock icon that was showing on the left side
                                                 Expanded(
                                                   child: Text(
                                                     message.text.isNotEmpty

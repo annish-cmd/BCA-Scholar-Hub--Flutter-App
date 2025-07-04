@@ -20,6 +20,10 @@ class AuthProvider with ChangeNotifier {
   User? get currentUser => _auth.currentUser;
   bool _isAdmin = false;
   bool get isAdmin => _isAdmin;
+  
+  // Add userJoinedTimestamp property - default to current time when user logs in
+  int _userJoinedTimestamp = 0;
+  int get userJoinedTimestamp => _userJoinedTimestamp;
 
   AuthProvider() {
     // Initialize database URL
@@ -30,12 +34,15 @@ class AuthProvider with ChangeNotifier {
     _auth.authStateChanges().listen((User? user) {
       _logger.d('Auth state changed: ${user?.email}');
       if (user != null) {
+        // Set user joined timestamp to current time
+        _userJoinedTimestamp = DateTime.now().millisecondsSinceEpoch;
         // Initialize encryption when user logs in
         _initializeEncryption();
         // Check admin status
         _checkAdminStatus();
       } else {
         _isAdmin = false;
+        _userJoinedTimestamp = 0;
         notifyListeners();
       }
       notifyListeners();
