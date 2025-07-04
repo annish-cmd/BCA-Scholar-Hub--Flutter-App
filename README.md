@@ -2,6 +2,21 @@
 
 A Flutter mobile application providing access to BCA (Bachelor of Computer Applications) study materials, courses, and a global chat feature for student communication.
 
+
+
+![a1](https://github.com/user-attachments/assets/161a9c5d-a486-43d1-83c5-13050764efc9)
+
+![a2](https://github.com/user-attachments/assets/5c4d390d-99fd-44c5-82a3-21ce860edbd4)
+
+![a3](https://github.com/user-attachments/assets/e7454273-0f2a-47ad-8865-cf15b7d94793)
+
+![a4](https://github.com/user-attachments/assets/a3ec6790-1a35-4f28-814e-715b31e516e2)
+
+![a5](https://github.com/user-attachments/assets/de5eb860-e62b-4507-b84b-43d07495b9a7)
+
+![a6](https://github.com/user-attachments/assets/d7ba9046-2ea9-46e4-b3b9-b549909e944a)
+
+
 ## Features
 
 - **Course Materials**: Access to BCA semester-wise study materials and resources
