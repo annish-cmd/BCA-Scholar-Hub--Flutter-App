@@ -104,6 +104,15 @@
     },
     "uploads": {
       ".read": "root.child('admins').child(auth.uid).exists()",
+      ".write": "root.child('admins').child(auth.uid).exists()",
+      ".indexOn": "uploadedAt"
+    },
+    "YouTube Videos": {
+      ".read": "auth != null",
+      ".write": "root.child('admins').child(auth.uid).exists()"
+    },
+    "Extra Course": {
+      ".read": "root.child('admins').child(auth.uid).exists()",
       ".write": "root.child('admins').child(auth.uid).exists()"
     }
   }

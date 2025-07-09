@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme_provider.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import '../services/database_service.dart';
+import '../models/youtube_video.dart';
 
 class YouTubeScreen extends StatefulWidget {
   const YouTubeScreen({super.key});
@@ -11,101 +13,141 @@ class YouTubeScreen extends StatefulWidget {
 }
 
 class _YouTubeScreenState extends State<YouTubeScreen> {
-  // List of videos to display
-  final List<YouTubeVideoModel> _videos = [
-    YouTubeVideoModel(
-      id: 'g4Ffdh41vRQ', // Extract ID from URL
+  // List of hardcoded videos to display
+  final List<YouTubeVideo> _hardcodedVideos = [
+    YouTubeVideo(
+      id: 'g4Ffdh41vRQ',
       title: 'Python Course for BCA, BIT, CSIT, BscCSIT, BIM Students',
-      subtitle: 'Python Programming',
-      timeAgo: '1 years ago',
-      tags: 'Python',
+      description: 'Learn Python programming for BCA and other students',
+      category: 'Python Programming',
+      isActive: true,
+      uploadedAt: DateTime.now().millisecondsSinceEpoch - const Duration(days: 365).inMilliseconds,
+      videoType: 'youtube',
+      youtubeUrl: 'https://youtu.be/g4Ffdh41vRQ',
     ),
-    YouTubeVideoModel(
-      id: 'W6NZfCO5SIk', // JavaScript tutorial
-      title:
-          'JavaScript Course for Beginners – Your First Step to Web Development',
-      subtitle: 'JavaScript Programming',
-      timeAgo: '5 years ago',
-      tags: 'Web Dev',
+    YouTubeVideo(
+      id: 'W6NZfCO5SIk',
+      title: 'JavaScript Course for Beginners – Your First Step to Web Development',
+      description: 'Learn JavaScript fundamentals for web development',
+      category: 'Web Dev',
+      isActive: true,
+      uploadedAt: DateTime.now().millisecondsSinceEpoch - const Duration(days: 365 * 5).inMilliseconds,
+      videoType: 'youtube',
+      youtubeUrl: 'https://youtu.be/W6NZfCO5SIk',
     ),
-    YouTubeVideoModel(
-      id: '1xipg02Wu8s', // Flutter tips
+    YouTubeVideo(
+      id: '1xipg02Wu8s',
       title: 'Basic Flutter Tips and Tricks',
-      subtitle: 'Flutter Development',
-      timeAgo: '2 years ago',
-      tags: 'Mobile Dev',
+      description: 'Flutter development tips for beginners',
+      category: 'Mobile Dev',
+      isActive: true,
+      uploadedAt: DateTime.now().millisecondsSinceEpoch - const Duration(days: 730).inMilliseconds,
+      videoType: 'youtube',
+      youtubeUrl: 'https://youtu.be/1xipg02Wu8s',
     ),
-    YouTubeVideoModel(
-      id: 'xTtL8E4LzTQ', // Java beginners guide
+    YouTubeVideo(
+      id: 'xTtL8E4LzTQ',
       title: 'Java Beginners Guide',
-      subtitle: 'Java Programming',
-      timeAgo: '3 years ago',
-      tags: 'Java',
+      description: 'Java programming basics for beginners',
+      category: 'Java',
+      isActive: true,
+      uploadedAt: DateTime.now().millisecondsSinceEpoch - const Duration(days: 365 * 3).inMilliseconds,
+      videoType: 'youtube',
+      youtubeUrl: 'https://youtu.be/xTtL8E4LzTQ',
     ),
   ];
 
-  // Example of how to add a video using URL:
-  // void addVideo(String url, String title, String subtitle, String timeAgo, String tags) {
-  //   final videoId = url; // You would parse the ID from the URL here
-  //   if (videoId != null) {
-  //     setState(() {
-  //       _videos.add(YouTubeVideoModel(
-  //         id: videoId,
-  //         title: title,
-  //         subtitle: subtitle,
-  //         timeAgo: timeAgo,
-  //         tags: tags,
-  //       ));
-  //       _controllers.add(YoutubePlayerController(
-  //         initialVideoId: videoId,
-  //         flags: const YoutubePlayerFlags(
-  //           autoPlay: true,
-  //           mute: false,
-  //           disableDragSeek: false,
-  //           loop: false,
-  //           isLive: false,
-  //           forceHD: true,
-  //           enableCaption: true,
-  //         ),
-  //       ));
-  //     });
-  //   }
-  // }
-
-  // Pre-initialize controllers for faster loading
-  late List<YoutubePlayerController> _controllers;
+  // Combined list of videos (hardcoded + from database)
+  List<YouTubeVideo> _allVideos = [];
+  List<YoutubePlayerController> _controllers = [];
   bool _isLoading = true;
+  final DatabaseService _databaseService = DatabaseService();
+  bool _showingOnlyHardcoded = false;
 
   @override
   void initState() {
     super.initState();
-    // Initialize controllers for each video
-    _controllers =
-        _videos
-            .map(
-              (video) => YoutubePlayerController(
-                initialVideoId: video.id,
-                flags: const YoutubePlayerFlags(
-                  autoPlay: true,
-                  mute: false,
-                  disableDragSeek: false,
-                  loop: false,
-                  isLive: false,
-                  forceHD: true,
-                  enableCaption: true,
-                ),
-              ),
-            )
-            .toList();
+    _loadVideos();
+  }
 
-    // Simulate loading time
-    Future.delayed(const Duration(milliseconds: 300), () {
+  Future<void> _loadVideos() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      // Start with hardcoded videos
+      List<YouTubeVideo> combinedVideos = List.from(_hardcodedVideos);
+      
+      // Fetch videos from Firebase
+      final dbVideos = await _databaseService.getYoutubeVideos();
+      
+      if (dbVideos.isNotEmpty) {
+        // Add database videos to our list
+        combinedVideos.addAll(dbVideos);
+        _showingOnlyHardcoded = false;
+      } else {
+        _showingOnlyHardcoded = true;
+      }
+      
+      // Sort videos by uploadedAt timestamp (newest first)
+      combinedVideos.sort((a, b) {
+        // If uploadedAt is null, use current time for sorting
+        final aTime = a.uploadedAt ?? DateTime.now().millisecondsSinceEpoch;
+        final bTime = b.uploadedAt ?? DateTime.now().millisecondsSinceEpoch;
+        // Reverse order (newest first - LIFO)
+        return bTime.compareTo(aTime);
+      });
+      
+      // Update state with all videos
       if (mounted) {
         setState(() {
+          _allVideos = combinedVideos;
+          
+          // Initialize controllers for each video
+          _controllers = _allVideos.map((video) {
+            return YoutubePlayerController(
+              initialVideoId: video.youtubeVideoId,
+              flags: const YoutubePlayerFlags(
+                autoPlay: true,
+                mute: false,
+                disableDragSeek: false,
+                loop: false,
+                isLive: false,
+                forceHD: true,
+                enableCaption: true,
+              ),
+            );
+          }).toList();
+          
           _isLoading = false;
         });
       }
-    });
+    } catch (e) {
+      debugPrint('Error loading videos: $e');
+      // If there's an error, at least show hardcoded videos
+      if (mounted) {
+        setState(() {
+          _allVideos = List.from(_hardcodedVideos);
+          _controllers = _allVideos.map((video) {
+            return YoutubePlayerController(
+              initialVideoId: video.youtubeVideoId,
+              flags: const YoutubePlayerFlags(
+                autoPlay: true,
+                mute: false,
+                disableDragSeek: false,
+                loop: false,
+                isLive: false,
+                forceHD: true,
+                enableCaption: true,
+              ),
+            );
+          }).toList();
+          _isLoading = false;
+          _showingOnlyHardcoded = true;
+        });
+      }
+    }
   }
 
   @override
@@ -158,21 +200,51 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                     color: isDarkMode ? Colors.purpleAccent : Colors.blue,
                   ),
                 )
-                : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _videos.length,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _buildYoutubeVideoCard(
-                        context,
-                        isDarkMode,
-                        textColor,
-                        _videos[index],
-                        index,
+                : RefreshIndicator(
+                  onRefresh: _loadVideos,
+                  child: Column(
+                    children: [
+                      if (_showingOnlyHardcoded)
+                        Container(
+                          margin: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.info_outline, color: Colors.orange),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Showing default videos. Admin-added videos will appear here when available.',
+                                  style: TextStyle(color: Colors.orange),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      Expanded(
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _allVideos.length,
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: _buildYoutubeVideoCard(
+                                context,
+                                isDarkMode,
+                                textColor,
+                                _allVideos[index],
+                                index,
+                              ),
+                            );
+                          },
+                        ),
                       ),
-                    );
-                  },
+                    ],
+                  ),
                 ),
       ),
     );
@@ -182,7 +254,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
     BuildContext context,
     bool isDarkMode,
     Color textColor,
-    YouTubeVideoModel video,
+    YouTubeVideo video,
     int index,
   ) {
     return Card(
@@ -204,9 +276,10 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                   pageBuilder:
                       (context, animation, secondaryAnimation) =>
                           YoutubePlayerPage(
-                            videoId: video.id,
+                            videoId: video.youtubeVideoId,
                             title: video.title,
                             controller: _controllers[index],
+                            description: video.description,
                           ),
                   transitionsBuilder: (
                     context,
@@ -237,14 +310,14 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
               alignment: Alignment.center,
               children: [
                 Hero(
-                  tag: 'video_${video.id}',
+                  tag: 'video_${video.youtubeVideoId}',
                   child: ClipRRect(
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(15),
                       topRight: Radius.circular(15),
                     ),
                     child: Image.network(
-                      'https://img.youtube.com/vi/${video.id}/maxresdefault.jpg',
+                      'https://img.youtube.com/vi/${video.youtubeVideoId}/maxresdefault.jpg',
                       width: double.infinity,
                       height: 200,
                       fit: BoxFit.cover,
@@ -287,7 +360,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                     size: 40,
                   ),
                 ),
-                if (video.tags.isNotEmpty)
+                if (video.category != null)
                   Positioned(
                     top: 10,
                     left: 10,
@@ -310,7 +383,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                         ],
                       ),
                       child: Text(
-                        video.tags,
+                        video.category!,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 10,
@@ -328,7 +401,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  video.subtitle,
+                  video.category ?? 'Educational Video',
                   style: TextStyle(
                     fontSize: 14,
                     color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
@@ -376,12 +449,14 @@ class YoutubePlayerPage extends StatefulWidget {
   final String videoId;
   final String title;
   final YoutubePlayerController controller;
+  final String? description; // Add description field
 
   const YoutubePlayerPage({
     super.key,
     required this.videoId,
     required this.title,
     required this.controller,
+    this.description, // Make description optional
   });
 
   @override
@@ -552,6 +627,18 @@ class _YoutubePlayerPageState extends State<YoutubePlayerPage>
                                 color: textColor,
                               ),
                             ),
+                            if (widget.description != null) ...[
+                              const SizedBox(height: 12),
+                              Text(
+                                widget.description!,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: isDarkMode 
+                                      ? Colors.grey[300] 
+                                      : Colors.grey[800],
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 16),
                             // Additional video information
                             Row(
@@ -589,21 +676,4 @@ class _YoutubePlayerPageState extends State<YoutubePlayerPage>
       ),
     );
   }
-}
-
-// Model class for YouTube videos
-class YouTubeVideoModel {
-  final String id;
-  final String title;
-  final String subtitle;
-  final String timeAgo;
-  final String tags;
-
-  YouTubeVideoModel({
-    required this.id,
-    required this.title,
-    required this.subtitle,
-    required this.timeAgo,
-    this.tags = '',
-  });
 }
