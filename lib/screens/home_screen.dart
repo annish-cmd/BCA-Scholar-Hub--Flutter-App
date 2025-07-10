@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../utils/theme_provider.dart';
 import '../utils/app_localizations.dart';
 import '../utils/url_launcher_utils.dart';
+import '../utils/notification_provider.dart';
 import '../widgets/search_app_bar.dart';
 import 'global_chat_screen.dart';
 import 'notification_page.dart';
@@ -108,14 +109,49 @@ class _HomeScreenState extends State<HomeScreen> {
                       _handleIndexChanged(2);
                     },
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.notifications),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const NotificationPage(),
-                        ),
+                  Consumer<NotificationProvider>(
+                    builder: (context, notificationProvider, child) {
+                      final unreadCount = notificationProvider.unreadCount;
+                      
+                      return Stack(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.notifications),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const NotificationPage(),
+                                ),
+                              );
+                            },
+                          ),
+                          if (unreadCount > 0)
+                            Positioned(
+                              right: 8,
+                              top: 8,
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 16,
+                                  minHeight: 16,
+                                ),
+                                child: Text(
+                                  unreadCount > 9 ? '9+' : '$unreadCount',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                        ],
                       );
                     },
                   ),

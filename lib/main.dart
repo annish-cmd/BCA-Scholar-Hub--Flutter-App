@@ -15,6 +15,7 @@ import 'utils/language_provider.dart';
 import 'utils/app_localizations.dart';
 import 'utils/favorites_provider.dart';
 import 'utils/auth_provider.dart';
+import 'utils/notification_provider.dart';
 import 'services/chat_service.dart';
 
 // Add services import
@@ -55,6 +56,7 @@ void main() async {
           ChangeNotifierProvider(create: (_) => LanguageProvider()),
           ChangeNotifierProvider(create: (_) => FavoritesProvider()),
           ChangeNotifierProvider(create: (_) => AuthProvider()),
+          ChangeNotifierProvider(create: (_) => NotificationProvider()),
           ChangeNotifierProvider<ChatService>(create: (_) => ChatService()),
         ],
         child: MyApp(key: myAppKey),

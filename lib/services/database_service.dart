@@ -3,6 +3,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:logger/logger.dart';
 import '../models/youtube_video.dart';
 import '../models/firebase_note.dart';
+import '../models/notification.dart' as app_notification;
 
 class DatabaseService {
   final Logger _logger = Logger();
@@ -27,6 +28,9 @@ class DatabaseService {
 
   // Reference to the uploads collection in the database
   DatabaseReference get _uploadsRef => _database.ref('uploads');
+
+  // Reference to the notifications collection in the database
+  DatabaseReference get _notificationsRef => _database.ref('notifications');
 
   // Test database connection
   Future<bool> testConnection() async {
@@ -350,5 +354,79 @@ class DatabaseService {
     
     // Return as is if already in standard format or unknown format
     return semester;
+  }
+
+  // Fetch notifications from Firebase
+  Future<List<app_notification.Notification>> getNotifications() async {
+    _logger.d('Fetching notifications from database');
+    List<app_notification.Notification> notifications = [];
+    
+    try {
+      final user = _auth.currentUser;
+      
+      if (user != null) {
+        _logger.d('User is authenticated, trying to access notifications');
+        
+        // Try using onValue stream which might work better with permissions
+        await _notificationsRef
+            .onValue
+            .first
+            .timeout(const Duration(seconds: 5))
+            .then((event) {
+          if (event.snapshot.exists && event.snapshot.value != null) {
+            final data = event.snapshot.value as Map<dynamic, dynamic>;
+            
+            data.forEach((key, value) {
+              if (value is Map) {
+                notifications.add(app_notification.Notification.fromMap(key.toString(), value));
+              }
+            });
+            
+            _logger.i('Retrieved ${notifications.length} notifications via stream');
+          }
+        }).catchError((e) {
+          _logger.w('Error accessing notifications via stream: $e');
+        });
+      }
+      
+      // Always add the welcome notification
+      final welcomeNotification = app_notification.Notification(
+        id: 'welcome',
+        title: 'Welcome!',
+        message: 'Thank you for using BCA Scholar Hub.',
+        type: 'welcome',
+        uploadedAt: 1609459200000, // January 1, 2021 (old date to make it appear at the bottom)
+        uploadedBy: 'system',
+      );
+      
+      // Check if welcome notification already exists
+      bool welcomeExists = notifications.any((n) => n.id == 'welcome');
+      
+      // Add it if it doesn't exist
+      if (!welcomeExists) {
+        notifications.add(welcomeNotification);
+      }
+      
+      // Sort notifications by timestamp (newest first)
+      notifications.sort((a, b) {
+        return b.uploadedAt.compareTo(a.uploadedAt);
+      });
+    } catch (e) {
+      _logger.e('Error fetching notifications:', error: e);
+      
+      // Add welcome notification if there was an error
+      notifications.add(
+        app_notification.Notification(
+          id: 'welcome',
+          title: 'Welcome!',
+          message: 'Thank you for using BCA Scholar Hub.',
+          type: 'welcome',
+          uploadedAt: DateTime.now().millisecondsSinceEpoch,
+          uploadedBy: 'system',
+        ),
+      );
+    }
+    
+    return notifications;
   }
 }
