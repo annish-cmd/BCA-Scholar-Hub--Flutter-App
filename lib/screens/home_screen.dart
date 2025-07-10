@@ -6,6 +6,7 @@ import '../utils/app_localizations.dart';
 import '../utils/url_launcher_utils.dart';
 import '../widgets/search_app_bar.dart';
 import 'global_chat_screen.dart';
+import 'notification_page.dart';
 
 class HomeScreen extends StatefulWidget {
   final int currentIndex;
@@ -110,7 +111,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   IconButton(
                     icon: const Icon(Icons.notifications),
                     onPressed: () {
-                      // Add notification functionality here
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationPage(),
+                        ),
+                      );
                     },
                   ),
                 ],

@@ -7,11 +7,50 @@ import '../utils/auth_provider.dart';
 import '../models/pdf_note.dart';
 import 'pdf_options_screen.dart';
 import 'home_content_screen.dart';
-import '../main.dart'; // Import for myAppKey
+import '../main.dart'; 
 import 'auth/login_screen.dart';
+import '../services/database_service.dart';
 
-class FavoritesScreen extends StatelessWidget {
+
+class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
+
+  @override
+  State<FavoritesScreen> createState() => _FavoritesScreenState();
+}
+
+class _FavoritesScreenState extends State<FavoritesScreen> {
+  final DatabaseService _databaseService = DatabaseService();
+  List<PdfNote> _allNotes = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAllNotes();
+  }
+
+  Future<void> _fetchAllNotes() async {
+    List<PdfNote> notes = [];
+    // Add hardcoded notes
+    notes.addAll(HomeContentScreen.pdfNotes);
+    // Add Firebase semester notes (for all 8 semesters)
+    for (var sem in ["1st","2nd","3rd","4th","5th","6th","7th","8th"]) {
+      try {
+        final semNotes = await _databaseService.getSemesterNotes(sem);
+        notes.addAll(semNotes.map((n) => n.toPdfNote()));
+      } catch (_) {}
+    }
+    // Add extra courses
+    try {
+      final extraNotes = await _databaseService.getExtraCourseNotes();
+      notes.addAll(extraNotes.map((n) => n.toPdfNote()));
+    } catch (_) {}
+    setState(() {
+      _allNotes = notes;
+      _loading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,23 +59,19 @@ class FavoritesScreen extends StatelessWidget {
     final authProvider = Provider.of<AuthProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
     final textColor = isDarkMode ? Colors.white : Colors.black;
-
-    // Get translations
     final localizations = AppLocalizations.of(context);
     final title = localizations.translate('favorites');
     final String noFavoritesMessage = localizations.translate('no_favorites');
 
-    // Check if user is logged in
     if (!authProvider.isLoggedIn) {
       return _buildLoginRequired(context, isDarkMode, textColor);
     }
 
-    // Get favorite PDFs
-    // Use the static PDFs list from HomeContentScreen
-    final List<PdfNote> allPdfs = HomeContentScreen.pdfNotes;
-    final List<PdfNote> favoritePdfs = favoritesProvider.getFavoritePdfs(
-      allPdfs,
-    );
+    if (_loading) {
+      return Center(child: CircularProgressIndicator());
+    }
+
+    final List<PdfNote> favoritePdfs = favoritesProvider.getFavoritePdfs(_allNotes);
 
     return Container(
       decoration: BoxDecoration(
@@ -277,6 +312,7 @@ class FavoritesScreen extends StatelessWidget {
     bool isDarkMode,
     Color textColor,
   ) {
+    final isNetworkImage = pdf.thumbnailImage.startsWith('http');
     return Card(
       elevation: 3,
       margin: const EdgeInsets.only(bottom: 16),
@@ -300,12 +336,25 @@ class FavoritesScreen extends StatelessWidget {
                 topLeft: Radius.circular(12),
                 bottomLeft: Radius.circular(12),
               ),
-              child: Image.asset(
-                'assets/images/${pdf.thumbnailImage}',
-                height: 100,
-                width: 100,
-                fit: BoxFit.cover,
-              ),
+              child: isNetworkImage
+                  ? Image.network(
+                      pdf.thumbnailImage,
+                      height: 100,
+                      width: 100,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        height: 100,
+                        width: 100,
+                        color: Colors.grey[300],
+                        child: const Icon(Icons.broken_image),
+                      ),
+                    )
+                  : Image.asset(
+                      'assets/images/${pdf.thumbnailImage}',
+                      height: 100,
+                      width: 100,
+                      fit: BoxFit.cover,
+                    ),
             ),
 
             // Content

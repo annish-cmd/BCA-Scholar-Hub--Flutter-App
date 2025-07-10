@@ -3,13 +3,63 @@ import 'package:provider/provider.dart';
 import '../utils/theme_provider.dart';
 import '../utils/app_localizations.dart';
 import '../models/pdf_note.dart';
-import 'pdf_viewer_screen.dart';
+import '../models/firebase_note.dart';
+import '../services/database_service.dart';
+import 'pdf_details_screen.dart';
 
-class ExtraCoursesScreen extends StatelessWidget {
+class ExtraCoursesScreen extends StatefulWidget {
   const ExtraCoursesScreen({super.key});
 
   @override
+  State<ExtraCoursesScreen> createState() => _ExtraCoursesScreenState();
+}
+
+class _ExtraCoursesScreenState extends State<ExtraCoursesScreen> with AutomaticKeepAliveClientMixin {
+  final DatabaseService _databaseService = DatabaseService();
+  bool _isLoading = true;
+  List<FirebaseNote> _extraCourses = [];
+  String _errorMessage = '';
+  
+  @override
+  bool get wantKeepAlive => false; // Don't keep this state when navigating away
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchExtraCourses();
+  }
+
+  Future<void> _fetchExtraCourses() async {
+    if (!mounted) return;
+    
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+      _extraCourses = []; // Clear previous courses
+    });
+
+    try {
+      final notes = await _databaseService.getExtraCourseNotes();
+      
+      if (mounted) {
+        setState(() {
+          _extraCourses = notes;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load courses: $e';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
     final textColor = isDarkMode ? Colors.white : Colors.black;
@@ -17,42 +67,6 @@ class ExtraCoursesScreen extends StatelessWidget {
 
     // Get translations
     final localizations = AppLocalizations.of(context);
-
-    // Define extra courses
-    final List<Map<String, dynamic>> courses = [
-      {
-        'title': 'Python Programming',
-        'description':
-            'Learn Python programming from basics to advanced concepts.',
-        'icon': Icons.code,
-        'color': Colors.blue,
-        'image': 'Python.jpg',
-      },
-      {
-        'title': 'Artificial Intelligence',
-        'description':
-            'Introduction to AI concepts, algorithms and applications.',
-        'icon': Icons.smart_toy,
-        'color': Colors.purple,
-        'image': 'networking.jpg',
-      },
-      {
-        'title': 'Machine Learning',
-        'description':
-            'Fundamentals of ML, including supervised and unsupervised learning.',
-        'icon': Icons.biotech,
-        'color': Colors.green,
-        'image': 'dot net.jpg',
-      },
-      {
-        'title': 'Search Engine Optimization (SEO)',
-        'description':
-            'Learn techniques to improve website visibility on search engines.',
-        'icon': Icons.search,
-        'color': Colors.orange,
-        'image': 'c.jpg',
-      },
-    ];
 
     return Container(
       decoration: BoxDecoration(
@@ -114,110 +128,188 @@ class ExtraCoursesScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: ListView.builder(
-                itemCount: courses.length,
-                itemBuilder: (context, index) {
-                  final course = courses[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    color: cardColor,
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(15),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) => PdfViewerScreen(
-                                  pdfNote: PdfNote.fromLegacy(
-                                    title: course['title'],
-                                    subject: localizations.translate(
-                                      'extra_course',
-                                    ),
-                                    description: course['description'],
-                                    filename:
-                                        'test.pdf', // Use your test PDF for now
-                                    thumbnailImage: course['image'],
-                                  ),
-                                ),
-                          ),
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            CircleAvatar(
-                              radius: 35,
-                              backgroundColor: course['color'].withAlpha(51),
-                              child: Icon(
-                                course['icon'],
-                                color: course['color'],
-                                size: 36,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    course['title'],
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: textColor,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    course['description'],
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color:
-                                          isDarkMode
-                                              ? Colors.grey[400]
-                                              : Colors.grey[700],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: course['color'].withAlpha(26),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      'Tap to view notes',
-                                      style: TextStyle(
-                                        color: course['color'],
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
+              child: _buildContent(context, cardColor, textColor),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildContent(BuildContext context, Color cardColor, Color textColor) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage.isNotEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              _errorMessage,
+              style: TextStyle(color: textColor),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _fetchExtraCourses,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_extraCourses.isEmpty) {
+      // Show empty state message instead of hardcoded fallback
+      return RefreshIndicator(
+        onRefresh: _fetchExtraCourses,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(height: MediaQuery.of(context).size.height * 0.2),
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.school_outlined,
+                    size: 64,
+                    color: textColor.withOpacity(0.5),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No extra courses available',
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Extra courses will appear here once they are added.',
+                    style: TextStyle(
+                      color: textColor.withOpacity(0.7),
+                      fontSize: 14,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _fetchExtraCourses,
+      child: ListView.builder(
+        itemCount: _extraCourses.length,
+        itemBuilder: (context, index) {
+          final course = _extraCourses[index];
+          return Card(
+            margin: const EdgeInsets.only(bottom: 16),
+            color: cardColor,
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(15),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PdfDetailsScreen(
+                      pdfNote: course.toPdfNote(),
+                      firebaseNote: course,
+                    ),
+                  ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8.0),
+                      child: Image.network(
+                        course.imageUrl,
+                        width: 70,
+                        height: 70,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            width: 70,
+                            height: 70,
+                            color: Colors.grey[300],
+                            child: const Icon(Icons.broken_image),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            course.title,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            course.description,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color:
+                                  isDarkMode(context)
+                                      ? Colors.grey[400]
+                                      : Colors.grey[700],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withAlpha(26),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'Tap to view notes',
+                              style: TextStyle(
+                                color: Colors.blue,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  bool isDarkMode(BuildContext context) {
+    return Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
   }
 }

@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:logger/logger.dart';
 import '../models/youtube_video.dart';
+import '../models/firebase_note.dart';
 
 class DatabaseService {
   final Logger _logger = Logger();
@@ -23,6 +24,9 @@ class DatabaseService {
   
   // Reference to the admins collection
   DatabaseReference get _adminsRef => _database.ref('admins');
+
+  // Reference to the uploads collection in the database
+  DatabaseReference get _uploadsRef => _database.ref('uploads');
 
   // Test database connection
   Future<bool> testConnection() async {
@@ -208,5 +212,143 @@ class DatabaseService {
     });
     
     return videos;
+  }
+
+  // Fetch extra course notes from the database
+  Future<List<FirebaseNote>> getExtraCourseNotes() async {
+    _logger.d('Fetching extra course notes from database');
+    List<FirebaseNote> notes = [];
+    
+    try {
+      final user = _auth.currentUser;
+      
+      if (user != null) {
+        _logger.d('User is authenticated, trying to access uploads');
+        
+        // Try using onValue stream which might work better with permissions
+        await _uploadsRef
+            .onValue
+            .first
+            .timeout(const Duration(seconds: 5))
+            .then((event) {
+          if (event.snapshot.exists && event.snapshot.value != null) {
+            final data = event.snapshot.value as Map<dynamic, dynamic>;
+            
+            data.forEach((key, value) {
+              if (value is Map && value['type'] == 'extra_course') {
+                notes.add(FirebaseNote.fromMap(key.toString(), value));
+              }
+            });
+            
+            _logger.i('Retrieved ${notes.length} extra course notes via stream');
+          }
+        }).catchError((e) {
+          _logger.w('Error accessing notes via stream: $e');
+        });
+      }
+      
+      // Sort notes by timestamp (newest first)
+      notes.sort((a, b) {
+        final aTime = a.uploadedAt;
+        final bTime = b.uploadedAt;
+        return bTime.compareTo(aTime);
+      });
+    } catch (e) {
+      _logger.e('Error fetching extra course notes:', error: e);
+    }
+    
+    return notes;
+  }
+
+  // Fetch semester-specific notes from the database
+  Future<List<FirebaseNote>> getSemesterNotes(String semester) async {
+    _logger.d('Fetching notes for semester: $semester');
+    List<FirebaseNote> notes = [];
+    
+    try {
+      final user = _auth.currentUser;
+      
+      if (user != null) {
+        _logger.d('User is authenticated, trying to access uploads');
+        
+        // Normalize semester format to handle different formats like "1st" vs "First"
+        String normalizedSemester = _normalizeSemester(semester);
+        
+        // Try using onValue stream which might work better with permissions
+        await _uploadsRef
+            .onValue
+            .first
+            .timeout(const Duration(seconds: 10))
+            .then((event) {
+          if (event.snapshot.exists && event.snapshot.value != null) {
+            final data = event.snapshot.value as Map<dynamic, dynamic>;
+            
+            // Clear the notes list first to avoid duplications
+            notes.clear();
+            
+            data.forEach((key, value) {
+              if (value is Map) {
+                String noteSemester = _normalizeSemester(value['semester'] ?? '');
+                
+                // Exact match for semester
+                if (noteSemester == normalizedSemester) {
+                  notes.add(FirebaseNote.fromMap(key.toString(), value));
+                  _logger.d('Added note: ${value['title']} for semester $normalizedSemester');
+                }
+              }
+            });
+            
+            _logger.i('Retrieved ${notes.length} notes for semester $semester via stream');
+          }
+        }).catchError((e) {
+          _logger.w('Error accessing notes via stream: $e');
+        });
+      }
+      
+      // Sort notes by timestamp (newest first)
+      if (notes.isNotEmpty) {
+        notes.sort((a, b) {
+          final aTime = a.uploadedAt;
+          final bTime = b.uploadedAt;
+          return bTime.compareTo(aTime);
+        });
+      }
+    } catch (e) {
+      _logger.e('Error fetching semester notes:', error: e);
+    }
+    
+    return notes;
+  }
+  
+  // Helper method to normalize semester format
+  String _normalizeSemester(String semester) {
+    // Convert semester to lowercase for comparison
+    semester = semester.toLowerCase();
+    
+    // Convert numeric format to ordinal if needed
+    Map<String, String> numberToOrdinal = {
+      '1': '1st', '2': '2nd', '3': '3rd', '4': '4th',
+      '5': '5th', '6': '6th', '7': '7th', '8': '8th',
+    };
+    
+    // Check if semester is just a number
+    if (numberToOrdinal.containsKey(semester)) {
+      return numberToOrdinal[semester]!;
+    }
+    
+    // Handle spelled out words
+    Map<String, String> wordToOrdinal = {
+      'first': '1st', 'second': '2nd', 'third': '3rd', 'fourth': '4th',
+      'fifth': '5th', 'sixth': '6th', 'seventh': '7th', 'eighth': '8th',
+      'one': '1st', 'two': '2nd', 'three': '3rd', 'four': '4th',
+      'five': '5th', 'six': '6th', 'seven': '7th', 'eight': '8th',
+    };
+    
+    if (wordToOrdinal.containsKey(semester)) {
+      return wordToOrdinal[semester]!;
+    }
+    
+    // Return as is if already in standard format or unknown format
+    return semester;
   }
 }
