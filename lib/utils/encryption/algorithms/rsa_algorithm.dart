@@ -13,9 +13,10 @@ class RSAAlgorithm {
   static const String _publicKeyTag = 'user_rsa_public_key';
   static final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
   static final Logger _logger = Logger();
-  
+
   // Generate a new RSA key pair
-  Future<AsymmetricKeyPair<RSAPublicKey, RSAPrivateKey>> generateKeyPair() async {
+  Future<AsymmetricKeyPair<RSAPublicKey, RSAPrivateKey>>
+  generateKeyPair() async {
     final secureRandom = FortunaRandom();
     final seedSource = Random.secure();
     final seeds = List<int>.generate(32, (_) => seedSource.nextInt(256));
@@ -27,14 +28,17 @@ class RSAAlgorithm {
       2048, // key length - using a standard length
       64, // certainty
     );
-    
+
     keyGen.init(ParametersWithRandom(keyParams, secureRandom));
 
     final pair = keyGen.generateKeyPair();
     final publicKey = pair.publicKey as RSAPublicKey;
     final privateKey = pair.privateKey as RSAPrivateKey;
 
-    return AsymmetricKeyPair<RSAPublicKey, RSAPrivateKey>(publicKey, privateKey);
+    return AsymmetricKeyPair<RSAPublicKey, RSAPrivateKey>(
+      publicKey,
+      privateKey,
+    );
   }
 
   // Get public key from private key
@@ -52,8 +56,12 @@ class RSAAlgorithm {
     topLevel.add(ASN1Integer(privateKey.privateExponent!));
     topLevel.add(ASN1Integer(privateKey.p!));
     topLevel.add(ASN1Integer(privateKey.q!));
-    topLevel.add(ASN1Integer(privateKey.privateExponent! % (privateKey.p! - BigInt.one)));
-    topLevel.add(ASN1Integer(privateKey.privateExponent! % (privateKey.q! - BigInt.one)));
+    topLevel.add(
+      ASN1Integer(privateKey.privateExponent! % (privateKey.p! - BigInt.one)),
+    );
+    topLevel.add(
+      ASN1Integer(privateKey.privateExponent! % (privateKey.q! - BigInt.one)),
+    );
     topLevel.add(ASN1Integer(privateKey.q!.modInverse(privateKey.p!)));
 
     final dataBase64 = base64.encode(topLevel.encodedBytes);
@@ -74,11 +82,12 @@ class RSAAlgorithm {
   // Parse private key from PEM format
   RSAPrivateKey parsePrivateKeyFromPem(String pemString) {
     try {
-      final lines = pemString
-          .split('\n')
-          .map((line) => line.trim())
-          .where((line) => line.isNotEmpty)
-          .toList();
+      final lines =
+          pemString
+              .split('\n')
+              .map((line) => line.trim())
+              .where((line) => line.isNotEmpty)
+              .toList();
 
       if (lines.length < 3 ||
           !lines.first.startsWith('-----BEGIN RSA PRIVATE KEY-----') ||
@@ -86,14 +95,15 @@ class RSAAlgorithm {
         throw Exception('Invalid PEM format');
       }
 
-      final keyString = lines
-          .sublist(1, lines.length - 1)
-          .join('');
+      final keyString = lines.sublist(1, lines.length - 1).join('');
       final keyBytes = base64.decode(keyString);
       final asn1Parser = ASN1Parser(keyBytes);
       final topLevel = asn1Parser.nextObject() as ASN1Sequence;
 
-      final values = topLevel.elements!.map((obj) => (obj as ASN1Integer).valueAsBigInteger).toList();
+      final values =
+          topLevel.elements!
+              .map((obj) => (obj as ASN1Integer).valueAsBigInteger)
+              .toList();
 
       return RSAPrivateKey(
         values[1]!, // modulus
@@ -110,11 +120,12 @@ class RSAAlgorithm {
   // Parse public key from PEM format
   RSAPublicKey parsePublicKeyFromPem(String pemString) {
     try {
-      final lines = pemString
-          .split('\n')
-          .map((line) => line.trim())
-          .where((line) => line.isNotEmpty)
-          .toList();
+      final lines =
+          pemString
+              .split('\n')
+              .map((line) => line.trim())
+              .where((line) => line.isNotEmpty)
+              .toList();
 
       if (lines.length < 3 ||
           !lines.first.startsWith('-----BEGIN RSA PUBLIC KEY-----') ||
@@ -122,9 +133,7 @@ class RSAAlgorithm {
         throw Exception('Invalid PEM format');
       }
 
-      final keyString = lines
-          .sublist(1, lines.length - 1)
-          .join('');
+      final keyString = lines.sublist(1, lines.length - 1).join('');
       final keyBytes = base64.decode(keyString);
       final asn1Parser = ASN1Parser(keyBytes);
       final topLevel = asn1Parser.nextObject() as ASN1Sequence;
@@ -142,8 +151,8 @@ class RSAAlgorithm {
   // Encrypt data using RSA public key
   Uint8List encrypt(Uint8List data, RSAPublicKey publicKey) {
     try {
-      final cipher = RSAEngine()
-        ..init(true, PublicKeyParameter<RSAPublicKey>(publicKey));
+      final cipher =
+          RSAEngine()..init(true, PublicKeyParameter<RSAPublicKey>(publicKey));
 
       return _processInBlocks(cipher, data);
     } catch (e) {
@@ -155,8 +164,9 @@ class RSAAlgorithm {
   // Decrypt data using RSA private key
   Uint8List decrypt(Uint8List data, RSAPrivateKey privateKey) {
     try {
-      final cipher = RSAEngine()
-        ..init(false, PrivateKeyParameter<RSAPrivateKey>(privateKey));
+      final cipher =
+          RSAEngine()
+            ..init(false, PrivateKeyParameter<RSAPrivateKey>(privateKey));
 
       return _processInBlocks(cipher, data);
     } catch (e) {
@@ -176,14 +186,19 @@ class RSAAlgorithm {
       var outputOffset = 0;
 
       while (inputOffset < input.length) {
-        final chunkSize = (inputOffset + blockSize <= input.length)
-            ? blockSize
-            : input.length - inputOffset;
+        final chunkSize =
+            (inputOffset + blockSize <= input.length)
+                ? blockSize
+                : input.length - inputOffset;
         final inputChunk = input.sublist(inputOffset, inputOffset + chunkSize);
-        
+
         try {
           final outputChunk = cipher.process(inputChunk);
-          output.setRange(outputOffset, outputOffset + outputChunk.length, outputChunk);
+          output.setRange(
+            outputOffset,
+            outputOffset + outputChunk.length,
+            outputChunk,
+          );
           inputOffset += chunkSize;
           outputOffset += outputChunk.length;
         } catch (e) {
@@ -204,15 +219,15 @@ class RSAAlgorithm {
   static Future<String?> getPublicKey() async {
     return await _secureStorage.read(key: _publicKeyTag);
   }
-  
+
   // Save public key to secure storage
   static Future<void> savePublicKey(String publicKeyPem) async {
     await _secureStorage.write(key: _publicKeyTag, value: publicKeyPem);
   }
-  
+
   // Check if keys are already stored
   static Future<bool> hasKeys() async {
     final privateKey = await _secureStorage.read(key: _privateKeyTag);
     return privateKey != null;
   }
-} 
+}

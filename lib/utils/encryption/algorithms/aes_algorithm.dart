@@ -8,7 +8,10 @@ class AESAlgorithm {
   // Generate a random AES key (256-bits/32-bytes)
   static Key generateKey() {
     // Generate 32 bytes (256 bits) for the key
-    final keyBytes = List<int>.generate(32, (_) => Random.secure().nextInt(256));
+    final keyBytes = List<int>.generate(
+      32,
+      (_) => Random.secure().nextInt(256),
+    );
     return Key(Uint8List.fromList(keyBytes));
   }
 
@@ -24,9 +27,9 @@ class AESAlgorithm {
     final aesKey = key ?? generateKey();
     final aesIv = iv ?? generateIV();
     final encrypter = Encrypter(AES(aesKey));
-    
+
     final encrypted = encrypter.encrypt(plainText, iv: aesIv);
-    
+
     return {
       'cipherText': encrypted.base64,
       'iv': aesIv.base64,
@@ -39,7 +42,7 @@ class AESAlgorithm {
     try {
       // Make sure the key is valid (must be 16, 24, or 32 bytes)
       final rawKey = base64.decode(keyString);
-      
+
       Key key;
       if (rawKey.length == 16 || rawKey.length == 24 || rawKey.length == 32) {
         key = Key(rawKey);
@@ -48,16 +51,16 @@ class AESAlgorithm {
         final adjustedKey = _adjustKeyLength(rawKey);
         key = Key(adjustedKey);
       }
-      
+
       final iv = IV.fromBase64(ivString);
       final encrypter = Encrypter(AES(key));
-      
+
       try {
         final decrypted = encrypter.decrypt64(cipherText, iv: iv);
         return decrypted;
       } catch (e) {
         print('AES Decryption error (inner): $e');
-        
+
         // Try again with a different key length if the first attempt failed
         // This helps with compatibility issues between different encryption implementations
         if (rawKey.length != 16) {
@@ -71,7 +74,7 @@ class AESAlgorithm {
             print('Second decryption attempt failed: $e2');
           }
         }
-        
+
         if (rawKey.length != 24 && rawKey.length != 16) {
           final adjustedKey24 = _adjustKeyLength(rawKey, targetLength: 24);
           final key24 = Key(adjustedKey24);
@@ -83,7 +86,7 @@ class AESAlgorithm {
             print('Third decryption attempt failed: $e3');
           }
         }
-        
+
         return null;
       }
     } catch (e) {
@@ -91,19 +94,19 @@ class AESAlgorithm {
       return null;
     }
   }
-  
+
   // Adjust key length to be 16, 24, or 32 bytes (128, 192, or 256 bits)
   static Uint8List _adjustKeyLength(List<int> key, {int targetLength = 32}) {
     if (targetLength != 16 && targetLength != 24 && targetLength != 32) {
       targetLength = 32; // Default to 256 bits if invalid target length
     }
-    
+
     if (key.length == targetLength) {
       return Uint8List.fromList(key);
     }
-    
+
     final adjustedKey = Uint8List(targetLength);
-    
+
     if (key.length < targetLength) {
       // If key is too short, pad it
       for (int i = 0; i < targetLength; i++) {
@@ -115,7 +118,7 @@ class AESAlgorithm {
         adjustedKey[i] = key[i];
       }
     }
-    
+
     return adjustedKey;
   }
 
@@ -128,4 +131,4 @@ class AESAlgorithm {
     }
     return hash.toString();
   }
-} 
+}
