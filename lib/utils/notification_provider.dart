@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 import '../services/database_service.dart';
 import '../models/notification.dart' as app_notification;
 
 class NotificationProvider extends ChangeNotifier {
   final DatabaseService _databaseService = DatabaseService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   List<app_notification.Notification> _notifications = [];
   int _unreadCount = 0;
   bool _isLoading = true;
+  StreamSubscription<List<app_notification.Notification>>? _notificationSubscription;
+  String? _currentUserId;
 
   // Getters
   List<app_notification.Notification> get notifications => _notifications;
@@ -17,40 +22,80 @@ class NotificationProvider extends ChangeNotifier {
   // Constructor
   NotificationProvider() {
     _initializeNotifications();
+    _listenToAuthChanges();
+  }
+
+  // Listen to auth state changes
+  void _listenToAuthChanges() {
+    _auth.authStateChanges().listen((User? user) {
+      if (user?.uid != _currentUserId) {
+        _currentUserId = user?.uid;
+        _resetNotifications();
+        if (user != null) {
+          _startNotificationStream();
+        }
+      }
+    });
+  }
+
+  // Reset notifications when user changes
+  void _resetNotifications() {
+    _notifications = [];
+    _unreadCount = 0;
+    _isLoading = true;
+    _notificationSubscription?.cancel();
+    _notificationSubscription = null;
+    notifyListeners();
   }
 
   // Initialize notifications
   Future<void> _initializeNotifications() async {
-    await _loadNotifications();
-    await _loadUnreadCount();
-  }
-
-  // Load notifications from database
-  Future<void> _loadNotifications() async {
-    try {
-      _isLoading = true;
-      notifyListeners();
-
-      final notifications = await _databaseService.getNotifications();
-      _notifications = notifications;
-      
-      _isLoading = false;
-      notifyListeners();
-    } catch (e) {
+    final user = _auth.currentUser;
+    if (user != null) {
+      _currentUserId = user.uid;
+      _startNotificationStream();
+    } else {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  // Load unread count from shared preferences
+  // Start real-time notification stream
+  void _startNotificationStream() {
+    _isLoading = true;
+    notifyListeners();
+    
+    _notificationSubscription = _databaseService.getNotificationsStream().listen(
+      (notifications) async {
+        _notifications = notifications;
+        _isLoading = false;
+        await _loadUnreadCount();
+        notifyListeners();
+      },
+      onError: (error) {
+        print('Error in notification stream: $error');
+        _isLoading = false;
+        notifyListeners();
+      },
+    );
+  }
+
+  // Load unread count from shared preferences (user-specific)
   Future<void> _loadUnreadCount() async {
     try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        _unreadCount = 0;
+        return;
+      }
+
       final prefs = await SharedPreferences.getInstance();
-      final lastReadTimestamp = prefs.getInt('last_notification_read_time') ?? 0;
+      final key = 'last_notification_read_time_${user.uid}';
+      final lastReadTimestamp = prefs.getInt(key) ?? 0;
       
       // Count notifications that came after the last read time
       _unreadCount = _notifications
-          .where((n) => n.uploadedAt > lastReadTimestamp)
+          .where((n) => n.uploadedAt > lastReadTimestamp && n.type != 'welcome')
           .length;
       
       notifyListeners();
@@ -61,13 +106,17 @@ class NotificationProvider extends ChangeNotifier {
     }
   }
 
-  // Mark all notifications as read
+  // Mark all notifications as read (user-specific)
   Future<void> markAllAsRead() async {
     try {
+      final user = _auth.currentUser;
+      if (user == null) return;
+
       final prefs = await SharedPreferences.getInstance();
+      final key = 'last_notification_read_time_${user.uid}';
       final now = DateTime.now().millisecondsSinceEpoch;
       
-      await prefs.setInt('last_notification_read_time', now);
+      await prefs.setInt(key, now);
       _unreadCount = 0;
       notifyListeners();
     } catch (e) {
@@ -75,9 +124,18 @@ class NotificationProvider extends ChangeNotifier {
     }
   }
 
-  // Refresh notifications
+  // Refresh notifications (manual refresh)
   Future<void> refreshNotifications() async {
-    await _loadNotifications();
-    await _loadUnreadCount();
+    // The stream will automatically update, but we can restart it if needed
+    if (_currentUserId != null) {
+      _notificationSubscription?.cancel();
+      _startNotificationStream();
+    }
   }
-} 
+
+  @override
+  void dispose() {
+    _notificationSubscription?.cancel();
+    super.dispose();
+  }
+}

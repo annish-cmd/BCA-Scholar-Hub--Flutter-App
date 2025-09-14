@@ -24,12 +24,15 @@ class Notification {
   });
 
   factory Notification.fromMap(String id, Map<dynamic, dynamic> map) {
+    // Debug: Print the uploadedAt value to see what's in Firebase
+    print('DEBUG: Notification $id uploadedAt from Firebase: ${map['uploadedAt']}');
+    
     return Notification(
       id: id,
       title: map['title'] ?? 'Notification',
       message: map['message'] ?? '',
       type: map['type'] ?? 'general',
-      uploadedAt: map['uploadedAt'] ?? DateTime.now().millisecondsSinceEpoch,
+      uploadedAt: map['uploadedAt'] ?? 0, // Use 0 instead of current time
       uploadedBy: map['uploadedBy'] ?? 'system',
       documentUrl: map['documentUrl'],
       semester: map['semester'],
@@ -37,24 +40,33 @@ class Notification {
     );
   }
 
-  // Get formatted time (e.g., "2 min ago", "1 hour ago", "Yesterday", "2 days ago")
+  // Get formatted time with short format (just now, 1 minute, 1 hour, 1 day, etc.)
   String getFormattedTime() {
-    final now = DateTime.now();
+    if (uploadedAt == 0) {
+      return 'Unknown time';
+    }
+    
     final timestamp = DateTime.fromMillisecondsSinceEpoch(uploadedAt);
+    final now = DateTime.now();
     final difference = now.difference(timestamp);
-
+    
     if (difference.inSeconds < 60) {
-      return 'Just now';
+      return 'just now';
     } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes} min ago';
+      final minutes = difference.inMinutes;
+      return minutes == 1 ? '1 minute' : '$minutes minute';
     } else if (difference.inHours < 24) {
-      return '${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago';
-    } else if (difference.inDays < 2) {
-      return 'Yesterday';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays} days ago';
+      final hours = difference.inHours;
+      return hours == 1 ? '1 hour' : '$hours hour';
+    } else if (difference.inDays < 30) {
+      final days = difference.inDays;
+      return days == 1 ? '1 day' : '$days day';
+    } else if (difference.inDays < 365) {
+      final months = (difference.inDays / 30).round();
+      return months == 1 ? '1 month' : '$months month';
     } else {
-      return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
+      final years = (difference.inDays / 365).round();
+      return years == 1 ? '1 year' : '$years year';
     }
   }
 

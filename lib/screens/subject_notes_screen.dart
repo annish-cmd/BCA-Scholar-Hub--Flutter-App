@@ -6,81 +6,49 @@ import '../models/firebase_note.dart';
 import '../services/database_service.dart';
 import 'pdf_details_screen.dart';
 
-class BcaSemesterPage extends StatefulWidget {
+class SubjectNotesScreen extends StatefulWidget {
   final int semester;
-  final String notes;
+  final String semesterString;
+  final String subject;
 
-  const BcaSemesterPage({
+  const SubjectNotesScreen({
     super.key,
     required this.semester,
-    required this.notes,
+    required this.semesterString,
+    required this.subject,
   });
 
   @override
-  State<BcaSemesterPage> createState() => _BcaSemesterPageState();
+  State<SubjectNotesScreen> createState() => _SubjectNotesScreenState();
 }
 
-class _BcaSemesterPageState extends State<BcaSemesterPage>
-    with AutomaticKeepAliveClientMixin {
+class _SubjectNotesScreenState extends State<SubjectNotesScreen> {
   final DatabaseService _databaseService = DatabaseService();
   bool _isLoading = true;
-  List<FirebaseNote> _semesterNotes = [];
+  List<FirebaseNote> _subjectNotes = [];
   String _errorMessage = '';
-  String _currentSemesterString = '';
-
-  @override
-  bool get wantKeepAlive => false; // Don't keep state when switching semesters
 
   @override
   void initState() {
     super.initState();
-    _fetchSemesterNotes();
+    _fetchSubjectNotes();
   }
 
-  @override
-  void didUpdateWidget(BcaSemesterPage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Reload data when semester changes
-    if (oldWidget.semester != widget.semester) {
-      _fetchSemesterNotes();
-    }
-  }
-
-  // Convert numeric semester to ordinal format
-  String _getSemesterString() {
-    if (widget.semester == 1) {
-      return '1st';
-    } else if (widget.semester == 2) {
-      return '2nd';
-    } else if (widget.semester == 3) {
-      return '3rd';
-    } else {
-      return '${widget.semester}th';
-    }
-  }
-
-  Future<void> _fetchSemesterNotes() async {
-    // Only set loading state if we're fetching for a different semester
-    if (_currentSemesterString != _getSemesterString() ||
-        _semesterNotes.isEmpty) {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = '';
-        _semesterNotes = []; // Clear previous notes
-      });
-    }
+  Future<void> _fetchSubjectNotes() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
 
     try {
-      // Get semester string
-      String semesterString = _getSemesterString();
-      _currentSemesterString = semesterString;
+      final notes = await _databaseService.getNotesForSubject(
+        widget.semesterString,
+        widget.subject,
+      );
 
-      final notes = await _databaseService.getSemesterNotes(semesterString);
-
-      // Only update state if we're still on the same semester
-      if (_currentSemesterString == semesterString && mounted) {
+      if (mounted) {
         setState(() {
-          _semesterNotes = notes;
+          _subjectNotes = notes;
           _isLoading = false;
         });
       }
@@ -96,7 +64,6 @@ class _BcaSemesterPageState extends State<BcaSemesterPage>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Required for AutomaticKeepAliveClientMixin
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
     final textColor = isDarkMode ? Colors.white : Colors.black;
@@ -109,67 +76,73 @@ class _BcaSemesterPageState extends State<BcaSemesterPage>
     // Get localizations
     final localizations = AppLocalizations.of(context);
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [backgroundColor, secondaryBackgroundColor],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.subject),
+        backgroundColor: isDarkMode ? Colors.black : Colors.blue,
+        foregroundColor: Colors.white,
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Card(
-              color: cardColor,
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          backgroundColor: Colors.blue,
-                          radius: 24,
-                          child: Text(
-                            '${widget.semester}',
-                            style: const TextStyle(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [backgroundColor, secondaryBackgroundColor],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Card(
+                color: cardColor,
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: Colors.blue,
+                            radius: 24,
+                            child: Icon(
+                              Icons.book,
                               color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
+                              size: 24,
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        Text(
-                          '${localizations.translate('bca_semester')} ${widget.semester}',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: textColor,
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Text(
+                              widget.subject,
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      widget.notes,
-                      style: TextStyle(fontSize: 16, color: textColor),
-                    ),
-                  ],
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '${localizations.translate('bca_semester')} ${widget.semester}',
+                        style: TextStyle(fontSize: 16, color: textColor),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(child: _buildContent(context, cardColor, textColor)),
-          ],
+              const SizedBox(height: 16),
+              Expanded(child: _buildContent(context, cardColor, textColor)),
+            ],
+          ),
         ),
       ),
     );
@@ -192,7 +165,7 @@ class _BcaSemesterPageState extends State<BcaSemesterPage>
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _fetchSemesterNotes,
+              onPressed: _fetchSubjectNotes,
               child: const Text('Retry'),
             ),
           ],
@@ -200,10 +173,9 @@ class _BcaSemesterPageState extends State<BcaSemesterPage>
       );
     }
 
-    if (_semesterNotes.isEmpty) {
-      // Show empty state message instead of hardcoded fallback
+    if (_subjectNotes.isEmpty) {
       return RefreshIndicator(
-        onRefresh: _fetchSemesterNotes,
+        onRefresh: _fetchSubjectNotes,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
@@ -219,7 +191,7 @@ class _BcaSemesterPageState extends State<BcaSemesterPage>
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'No notes available for this semester',
+                    'No notes available for ${widget.subject}',
                     style: TextStyle(
                       color: textColor,
                       fontSize: 16,
@@ -245,12 +217,12 @@ class _BcaSemesterPageState extends State<BcaSemesterPage>
     }
 
     return RefreshIndicator(
-      onRefresh: _fetchSemesterNotes,
+      onRefresh: _fetchSubjectNotes,
       child: ListView.builder(
         padding: const EdgeInsets.all(8),
-        itemCount: _semesterNotes.length,
+        itemCount: _subjectNotes.length,
         itemBuilder: (context, index) {
-          final note = _semesterNotes[index];
+          final note = _subjectNotes[index];
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
             color: cardColor,

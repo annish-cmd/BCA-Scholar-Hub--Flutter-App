@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:timeago/timeago.dart' as timeago;
 
 class YouTubeVideo {
   final String id;  // Database key or custom ID
@@ -50,19 +51,7 @@ class YouTubeVideo {
     
     try {
       final DateTime date = DateTime.fromMillisecondsSinceEpoch(uploadedAt!);
-      final Duration difference = DateTime.now().difference(date);
-      
-      if (difference.inDays > 365) {
-        return '${(difference.inDays / 365).floor()} years ago';
-      } else if (difference.inDays > 30) {
-        return '${(difference.inDays / 30).floor()} months ago';
-      } else if (difference.inDays > 0) {
-        return '${difference.inDays} days ago';
-      } else if (difference.inHours > 0) {
-        return '${difference.inHours} hours ago';
-      } else {
-        return '${difference.inMinutes} minutes ago';
-      }
+      return timeago.format(date);
     } catch (e) {
       if (kDebugMode) {
         print('Error formatting time ago: $e');
