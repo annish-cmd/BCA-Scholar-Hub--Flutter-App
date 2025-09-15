@@ -1,26 +1,96 @@
 {
   "project_info": {
     "project_number": "567128132210",
+    "firebase_url": "https://bcalibraryapp-default-rtdb.asia-southeast1.firebasedatabase.app",
     "project_id": "bcalibraryapp",
     "storage_bucket": "bcalibraryapp.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:567128132210:android:a886d7e5f1738b92a250eb",
+        "mobilesdk_app_id": "1:567128132210:android:60cac22efbdddc3ea250eb",
         "android_client_info": {
           "package_name": "com.example.anish_library"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "567128132210-ck1g9uoln9973g3v7ssbu6rtrmq1enao.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.anish_library",
+            "certificate_hash": "ddcdf5f7351be33ef660532856c875efb7c55958"
+          }
+        },
+        {
+          "client_id": "567128132210-2fka92rc6bp5jl643qogthf662fkb1r3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyBcckwIFOXbRTUR6e4ud9jTZDjr1RhnFaQ"
+          "current_key": "AIzaSyBXAzJTNJ2OQQnoUJfNbh-bbAzMsXHwqlI"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "567128132210-2fka92rc6bp5jl643qogthf662fkb1r3.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "567128132210-fp94vo1t08fuoab9vl91t5vud487a6ov.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.anishLibrary"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:567128132210:android:0368f6c072f233f6a250eb",
+        "android_client_info": {
+          "package_name": "com.example.bca_admin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "567128132210-njciat4r72ur3el36pbphke5b5n66t0q.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.bca_admin",
+            "certificate_hash": "ddcdf5f7351be33ef660532856c875efb7c55958"
+          }
+        },
+        {
+          "client_id": "567128132210-2fka92rc6bp5jl643qogthf662fkb1r3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBXAzJTNJ2OQQnoUJfNbh-bbAzMsXHwqlI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "567128132210-2fka92rc6bp5jl643qogthf662fkb1r3.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "567128132210-fp94vo1t08fuoab9vl91t5vud487a6ov.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.anishLibrary"
+              }
+            }
+          ]
         }
       }
     }

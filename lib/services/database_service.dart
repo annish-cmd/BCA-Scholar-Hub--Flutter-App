@@ -516,28 +516,25 @@ class DatabaseService {
   // Stream notifications from Firebase for real-time updates
   Stream<List<app_notification.Notification>> getNotificationsStream() {
     _logger.d('Setting up notifications stream');
-    
+
     return _notificationsRef.onValue.map((event) {
       List<app_notification.Notification> notifications = [];
-      
+
       try {
         if (event.snapshot.exists && event.snapshot.value != null) {
           final data = event.snapshot.value as Map<dynamic, dynamic>;
-          
+
           data.forEach((key, value) {
             if (value is Map) {
               notifications.add(
-                app_notification.Notification.fromMap(
-                  key.toString(),
-                  value,
-                ),
+                app_notification.Notification.fromMap(key.toString(), value),
               );
             }
           });
-          
+
           _logger.i('Stream retrieved ${notifications.length} notifications');
         }
-        
+
         // Always add the welcome notification
         final welcomeNotification = app_notification.Notification(
           id: 'welcome',
@@ -547,20 +544,19 @@ class DatabaseService {
           uploadedAt: 1609459200000, // Old date to appear at bottom
           uploadedBy: 'system',
         );
-        
+
         // Check if welcome notification already exists
         bool welcomeExists = notifications.any((n) => n.id == 'welcome');
-        
+
         if (!welcomeExists) {
           notifications.add(welcomeNotification);
         }
-        
+
         // Sort by timestamp (newest first)
         notifications.sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
-        
       } catch (e) {
         _logger.e('Error processing notifications stream:', error: e);
-        
+
         // Add welcome notification as fallback
         notifications = [
           app_notification.Notification(
@@ -573,7 +569,7 @@ class DatabaseService {
           ),
         ];
       }
-      
+
       return notifications;
     });
   }

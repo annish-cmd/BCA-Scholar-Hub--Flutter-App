@@ -25,8 +25,10 @@ class Notification {
 
   factory Notification.fromMap(String id, Map<dynamic, dynamic> map) {
     // Debug: Print the uploadedAt value to see what's in Firebase
-    print('DEBUG: Notification $id uploadedAt from Firebase: ${map['uploadedAt']}');
-    
+    print(
+      'DEBUG: Notification $id uploadedAt from Firebase: ${map['uploadedAt']}',
+    );
+
     return Notification(
       id: id,
       title: map['title'] ?? 'Notification',
@@ -45,11 +47,11 @@ class Notification {
     if (uploadedAt == 0) {
       return 'Unknown time';
     }
-    
+
     final timestamp = DateTime.fromMillisecondsSinceEpoch(uploadedAt);
     final now = DateTime.now();
     final difference = now.difference(timestamp);
-    
+
     if (difference.inSeconds < 60) {
       return 'just now';
     } else if (difference.inMinutes < 60) {
@@ -83,4 +85,4 @@ class Notification {
         return Icons.notifications;
     }
   }
-} 
+}

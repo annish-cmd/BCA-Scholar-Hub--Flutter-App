@@ -11,7 +11,8 @@ class NotificationProvider extends ChangeNotifier {
   List<app_notification.Notification> _notifications = [];
   int _unreadCount = 0;
   bool _isLoading = true;
-  StreamSubscription<List<app_notification.Notification>>? _notificationSubscription;
+  StreamSubscription<List<app_notification.Notification>>?
+  _notificationSubscription;
   String? _currentUserId;
 
   // Getters
@@ -64,20 +65,22 @@ class NotificationProvider extends ChangeNotifier {
   void _startNotificationStream() {
     _isLoading = true;
     notifyListeners();
-    
-    _notificationSubscription = _databaseService.getNotificationsStream().listen(
-      (notifications) async {
-        _notifications = notifications;
-        _isLoading = false;
-        await _loadUnreadCount();
-        notifyListeners();
-      },
-      onError: (error) {
-        print('Error in notification stream: $error');
-        _isLoading = false;
-        notifyListeners();
-      },
-    );
+
+    _notificationSubscription = _databaseService
+        .getNotificationsStream()
+        .listen(
+          (notifications) async {
+            _notifications = notifications;
+            _isLoading = false;
+            await _loadUnreadCount();
+            notifyListeners();
+          },
+          onError: (error) {
+            print('Error in notification stream: $error');
+            _isLoading = false;
+            notifyListeners();
+          },
+        );
   }
 
   // Load unread count from shared preferences (user-specific)
@@ -92,12 +95,15 @@ class NotificationProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final key = 'last_notification_read_time_${user.uid}';
       final lastReadTimestamp = prefs.getInt(key) ?? 0;
-      
+
       // Count notifications that came after the last read time
-      _unreadCount = _notifications
-          .where((n) => n.uploadedAt > lastReadTimestamp && n.type != 'welcome')
-          .length;
-      
+      _unreadCount =
+          _notifications
+              .where(
+                (n) => n.uploadedAt > lastReadTimestamp && n.type != 'welcome',
+              )
+              .length;
+
       notifyListeners();
     } catch (e) {
       // Default to 0 if there's an error
@@ -115,7 +121,7 @@ class NotificationProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final key = 'last_notification_read_time_${user.uid}';
       final now = DateTime.now().millisecondsSinceEpoch;
-      
+
       await prefs.setInt(key, now);
       _unreadCount = 0;
       notifyListeners();

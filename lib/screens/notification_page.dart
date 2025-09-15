@@ -144,16 +144,23 @@ class _NotificationPageState extends State<NotificationPage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     CircleAvatar(
-                                      backgroundColor: isDarkMode ? Colors.blue[900] : Colors.blue[100],
+                                      backgroundColor:
+                                          isDarkMode
+                                              ? Colors.blue[900]
+                                              : Colors.blue[100],
                                       child: Icon(
                                         notif.getIcon(),
-                                        color: isDarkMode ? Colors.white : Colors.blue,
+                                        color:
+                                            isDarkMode
+                                                ? Colors.white
+                                                : Colors.blue,
                                       ),
                                     ),
                                     const SizedBox(width: 16),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Row(
                                             children: [
@@ -172,7 +179,10 @@ class _NotificationPageState extends State<NotificationPage> {
                                                   notif.getFormattedTime(),
                                                   style: TextStyle(
                                                     fontSize: 12,
-                                                    color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                                                    color:
+                                                        isDarkMode
+                                                            ? Colors.grey[400]
+                                                            : Colors.grey[600],
                                                   ),
                                                 ),
                                             ],
@@ -182,7 +192,10 @@ class _NotificationPageState extends State<NotificationPage> {
                                             notif.message,
                                             style: TextStyle(
                                               fontSize: 14,
-                                              color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                                              color:
+                                                  isDarkMode
+                                                      ? Colors.grey[300]
+                                                      : Colors.grey[700],
                                             ),
                                           ),
                                         ],
@@ -206,7 +219,8 @@ class _NotificationPageState extends State<NotificationPage> {
     // Handle different notification types
     switch (notification.type) {
       case 'new_note':
-        if (notification.documentUrl != null && notification.documentUrl!.isNotEmpty) {
+        if (notification.documentUrl != null &&
+            notification.documentUrl!.isNotEmpty) {
           // Create a temporary PdfNote from the notification data
           final pdfNote = PdfNote(
             id: notification.id,
@@ -233,7 +247,8 @@ class _NotificationPageState extends State<NotificationPage> {
         break;
       default:
         // For other notification types, only navigate if there's a document URL
-        if (notification.documentUrl != null && notification.documentUrl!.isNotEmpty) {
+        if (notification.documentUrl != null &&
+            notification.documentUrl!.isNotEmpty) {
           // Create a temporary PdfNote from the notification data
           final pdfNote = PdfNote(
             id: notification.id,
@@ -251,7 +266,7 @@ class _NotificationPageState extends State<NotificationPage> {
             ),
           );
         }
-        // Remove snackbar - do nothing if no document URL
+      // Remove snackbar - do nothing if no document URL
     }
   }
 }
