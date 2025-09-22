@@ -27,6 +27,7 @@ class _SearchAppBarState extends State<SearchAppBar> {
   List<SearchResult> _searchResults = [];
   final FocusNode _focusNode = FocusNode();
   OverlayEntry? _overlayEntry;
+  bool _isSearching = false;
 
   @override
   void initState() {
@@ -51,14 +52,29 @@ class _SearchAppBarState extends State<SearchAppBar> {
     super.dispose();
   }
 
-  void _performSearch(String query) {
+  void _performSearch(String query) async {
     setState(() {
-      if (query.isEmpty) {
-        _searchResults = [];
-      } else {
-        _searchResults = SearchService.searchSubjects(query);
-      }
+      _isSearching = true;
     });
+
+    try {
+      List<SearchResult> results;
+      if (query.isEmpty) {
+        results = [];
+      } else {
+        results = await SearchService.searchSubjects(query);
+      }
+      
+      setState(() {
+        _searchResults = results;
+        _isSearching = false;
+      });
+    } catch (e) {
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+      });
+    }
 
     // Update the overlay when search results change
     _updateOverlay();
@@ -112,9 +128,15 @@ class _SearchAppBarState extends State<SearchAppBar> {
               ),
             ],
           ),
-          child:
-              _searchController.text.isEmpty
-                  ? Center(
+          child: _isSearching
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  : _searchController.text.isEmpty
+                      ? Center(
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
@@ -214,37 +236,57 @@ class _SearchAppBarState extends State<SearchAppBar> {
                             fontSize: 14,
                           ),
                         ),
-                        subtitle: Text(
-                          'Semester ${result.semester}',
-                          style: TextStyle(
-                            color:
-                                widget.isDarkMode
-                                    ? Colors.blue[300]
-                                    : Colors.blue[700],
-                            fontSize: 12,
-                          ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Semester ${result.semester}',
+                              style: TextStyle(
+                                color: widget.isDarkMode ? Colors.blue[300] : Colors.blue[700],
+                                fontSize: 12,
+                              ),
+                            ),
+                            if (result.firebaseNote != null && result.firebaseNote!.category.isNotEmpty)
+                              Text(
+                                'Subject: ${result.firebaseNote!.category}',
+                                style: TextStyle(
+                                  color: widget.isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                                  fontSize: 11,
+                                ),
+                              ),
+                          ],
                         ),
                         onTap: () {
                           _hideOverlay();
                           widget.onClose(); // Close the search app bar
 
-                          // Navigate to the PDF viewer
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (context) => PdfViewerScreen(
-                                    pdfNote: PdfNote.fromLegacy(
-                                      title: result.subject,
-                                      subject: 'Semester ${result.semester}',
-                                      description:
-                                          'Notes for ${result.subject}',
-                                      filename: 'test.pdf',
-                                      thumbnailImage: 'c.jpg',
-                                    ),
+                          // Navigate to the PDF viewer using Firebase note data if available
+                          if (result.firebaseNote != null) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => PdfViewerScreen(
+                                  pdfNote: result.firebaseNote!.toPdfNote(),
+                                ),
+                              ),
+                            );
+                          } else {
+                            // Fallback for notes without Firebase data
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => PdfViewerScreen(
+                                  pdfNote: PdfNote.fromLegacy(
+                                    title: result.subject,
+                                    subject: 'Semester ${result.semester}',
+                                    description: 'Notes for ${result.subject}',
+                                    filename: 'test.pdf',
+                                    thumbnailImage: 'c.jpg',
                                   ),
-                            ),
-                          );
+                                ),
+                              ),
+                            );
+                          }
                         },
                       );
                     },
