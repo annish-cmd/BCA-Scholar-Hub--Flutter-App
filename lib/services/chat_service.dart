@@ -14,6 +14,10 @@ class ChatService extends ChangeNotifier {
   List<ChatMessage> _cachedMessages = [];
   bool _isLoadingMessages = false;
   bool _isAdmin = false;
+  
+  // Optimization: Reduce unnecessary notifications
+  DateTime? _lastNotifyTime;
+  bool _hasNotificationScheduled = false;
 
   // Initialize Firebase Database URL and eagerly load messages
   ChatService() {
@@ -293,7 +297,7 @@ class ChatService extends ChangeNotifier {
                         iv: message.iv,
                         encryptedKeys: message.encryptedKeys,
                       );
-                      notifyListeners();
+                      _throttledNotify();
                     }
                   }
                 })
@@ -358,7 +362,7 @@ class ChatService extends ChangeNotifier {
       );
 
       if (decryptedText != null && decryptedText.isNotEmpty) {
-        notifyListeners();
+        _throttledNotify();
         return decryptedText;
       } else {
         return "";
@@ -467,5 +471,28 @@ class ChatService extends ChangeNotifier {
     final user = _auth.currentUser;
     if (user == null) return false;
     return message.userId == user.uid;
+  }
+  
+  // Throttled notification to prevent rapid UI rebuilds
+  void _throttledNotify() {
+    final now = DateTime.now();
+    if (_lastNotifyTime != null && 
+        now.difference(_lastNotifyTime!) < const Duration(milliseconds: 150)) {
+      
+      if (!_hasNotificationScheduled) {
+        _hasNotificationScheduled = true;
+        Future.delayed(const Duration(milliseconds: 150), () {
+          if (_hasNotificationScheduled) {
+            _lastNotifyTime = DateTime.now();
+            _hasNotificationScheduled = false;
+            notifyListeners();
+          }
+        });
+      }
+      return;
+    }
+    
+    _lastNotifyTime = now;
+    notifyListeners();
   }
 }

@@ -30,6 +30,12 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
   bool isReplyMode = false;
   ChatMessage? replyToMessage;
   final Logger _logger = Logger();
+  
+  // Optimization: Reduce rebuild frequency
+  bool _hasUpdatesScheduled = false;
+  bool _isScrolling = false;
+  DateTime? _lastScrollTime;
+  bool _isSendingMessage = false; // Flag to prevent UI updates during sending
 
   @override
   void initState() {
@@ -61,7 +67,7 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
 
         // Scroll to bottom after cached messages are loaded
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _scrollToBottom();
+          _scrollToBottomSmooth();
         });
       }
 
@@ -93,32 +99,38 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
   void _setupMessageListener() {
     _chatService.getMessagesStream().listen(
       (messages) {
-        if (mounted) {
-          final bool shouldScrollToBottom = 
-              _scrollController.hasClients &&
-              (_scrollController.position.maxScrollExtent - _scrollController.offset) < 200;
+        if (mounted && !_hasUpdatesScheduled) {
+          _hasUpdatesScheduled = true;
           
-          setState(() {
-            _messages = messages;
-            _isLoading = false;
-          });
+          // Always update messages in real-time - don't block during sending
+          Future.microtask(() {
+            if (mounted) {
+              final bool shouldScrollToBottom = 
+                  _scrollController.hasClients &&
+                  (_scrollController.position.maxScrollExtent - _scrollController.offset) < 200;
+              
+              // Always update with latest Firebase messages
+              setState(() {
+                _messages = messages;
+                _isLoading = false;
+              });
 
-          // Scroll to bottom when new messages arrive if user was already near bottom
-          if (shouldScrollToBottom) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _scrollToBottom();
-            });
-          }
-          
-          // Always scroll to bottom if a new message arrives in the last 2 seconds
-          final now = DateTime.now().millisecondsSinceEpoch;
-          final hasNewMessage = messages.any((m) => (now - m.timestamp) < 2000);
-          
-          if (hasNewMessage) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _scrollToBottom();
-            });
-          }
+              // Auto-scroll for new messages
+              if (shouldScrollToBottom && !_isScrolling) {
+                _scrollToBottomSmooth();
+              }
+              
+              // Check for very recent messages and scroll
+              final now = DateTime.now().millisecondsSinceEpoch;
+              final hasVeryNewMessage = messages.any((m) => (now - m.timestamp) < 3000);
+              
+              if (hasVeryNewMessage && !_isScrolling) {
+                _scrollToBottomSmooth();
+              }
+              
+              _hasUpdatesScheduled = false;
+            }
+          });
         }
       },
       onError: (error) {
@@ -163,53 +175,62 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
     super.dispose();
   }
 
-  // Scroll to bottom of chat
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
+  // Optimized scroll to bottom with throttling
+  void _scrollToBottomSmooth() {
+    final now = DateTime.now();
+    if (_lastScrollTime != null && 
+        now.difference(_lastScrollTime!) < const Duration(milliseconds: 200)) {
+      return; // Throttle scroll operations
+    }
+    
+    _lastScrollTime = now;
+    
+    if (_scrollController.hasClients && !_isScrolling) {
+      _isScrolling = true;
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+        duration: const Duration(milliseconds: 250), // Slightly faster
+        curve: Curves.easeOutCubic, // Smoother curve
+      ).then((_) {
+        _isScrolling = false;
+      }).catchError((e) {
+        _isScrolling = false;
+        _logger.w('Scroll animation error: $e');
+      });
     }
+  }
+  
+  // Legacy method for backward compatibility
+  void _scrollToBottom() {
+    _scrollToBottomSmooth();
+  }
+  
+  // Always allow message updates for real-time behavior
+  bool _hasMessagesChanged(List<ChatMessage> newMessages) {
+    // Always return true to ensure real-time updates
+    return true;
   }
 
   // Send message
   Future<void> _sendMessage() async {
-    if (_messageController.text.trim().isNotEmpty) {
+    if (_messageController.text.trim().isNotEmpty && !_isSendingMessage) {
       final messageText = _messageController.text.trim();
       _messageController.clear();
+      
+      // Minimal sending flag - don't block Firebase updates
+      _isSendingMessage = true;
 
-      // Add a temporary message while it's sending
-      final tempMessage = ChatMessage(
-        id: 'temp-${DateTime.now().millisecondsSinceEpoch}',
-        userId: firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? '',
-        userName:
-            firebase_auth.FirebaseAuth.instance.currentUser?.displayName ??
-            'Me',
-        text: messageText,
-        timestamp: DateTime.now().millisecondsSinceEpoch,
-        userPhotoUrl: firebase_auth.FirebaseAuth.instance.currentUser?.photoURL,
-        isEncrypted: _isEncryptionInitialized,
-      );
-
-      setState(() {
-        _tempMessages.add(tempMessage);
-        _messages = [..._messages, tempMessage];
-      });
-
-      // Scroll to bottom to show the new message
+      // Scroll to bottom immediately when user sends
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottom();
+        _scrollToBottomSmooth();
       });
 
       try {
-        // First, force check the encryption status
+        // First, force check the encryption status (without rebuilding UI)
         if (!_isEncryptionInitialized) {
           await _chatService.checkAndInitializeEncryption();
-          setState(() {
-            _isEncryptionInitialized = _chatService.isEncryptionInitialized;
-          });
+          _isEncryptionInitialized = _chatService.isEncryptionInitialized;
+          // Don't call setState here to prevent UI rebuilds during message sending
         }
 
         // Send message to the service
@@ -218,13 +239,15 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
           messageText,
           replyToId: replyToId,
         );
+        
+        // Always reset sending flag immediately after attempt
+        _isSendingMessage = false;
 
         if (!success) {
           // If failed with encryption, try again without encryption
           if (_isEncryptionInitialized) {
-            setState(() {
-              _isEncryptionInitialized = false;
-            });
+            // Don't update UI state during retry to prevent rebuilds
+            _isEncryptionInitialized = false;
 
             final retrySuccess = await _chatService.sendMessage(
               messageText,
@@ -258,16 +281,8 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
           ),
         );
       } finally {
-        // Remove temp message after a delay
-        Future.delayed(const Duration(seconds: 1), () {
-          if (mounted) {
-            setState(() {
-              _messages =
-                  _messages.where((m) => m.id != tempMessage.id).toList();
-              _tempMessages.remove(tempMessage);
-            });
-          }
-        });
+        // Always reset sending flag to allow Firebase updates
+        _isSendingMessage = false;
       }
 
       // Clear reply if there was one
@@ -276,7 +291,42 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
           _replyingToMessage = null;
         });
       }
+      
+      // Force scroll to bottom after sending
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          _scrollToBottomSmooth();
+        }
+      });
     }
+  }
+  
+  // Helper method to check if there are any temporary messages
+  bool _hasAnyTempMessages() {
+    return _tempMessages.isNotEmpty || _messages.any((m) => m.id.startsWith('temp-'));
+  }
+  
+  // Helper method to check if message is older than 5 minutes
+  bool _isMessageOlderThan5Minutes(ChatMessage message) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return (now - message.timestamp) > 300000; // 5 minutes in milliseconds
+  }
+  
+  // Simplified method to check if message should show "before joined" text
+  bool _shouldShowBeforeJoinedMessage(ChatMessage message) {
+    // Must be encrypted with empty text (failed decryption)
+    if (!message.isEncrypted || message.text.isNotEmpty) {
+      return false;
+    }
+    
+    // Don't show for temporary messages (check by ID)
+    if (message.id.startsWith('temp-')) {
+      return false;
+    }
+    
+    // Simple logic: if encrypted message has no text, user probably can't decrypt it
+    // This covers most cases where new users can't see old messages
+    return true;
   }
 
   // Cancel reply mode
@@ -514,36 +564,7 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            // Encryption status indicator
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color:
-                    _isEncryptionInitialized
-                        ? Colors.green[700]
-                        : Colors.orange[700],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _isEncryptionInitialized ? Icons.lock : Icons.lock_open,
-                    color: Colors.white,
-                    size: 14,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    _isEncryptionInitialized ? 'Encrypted' : 'Setting up...',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // Hide encryption status from UI
           ],
         ),
         flexibleSpace: Container(
@@ -654,6 +675,10 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                             controller: _scrollController,
                             padding: const EdgeInsets.all(16),
                             itemCount: _messages.length,
+                            // Performance optimizations
+                            addAutomaticKeepAlives: false, // Don't keep offscreen widgets alive
+                            addRepaintBoundaries: true, // Isolate repaints
+                            cacheExtent: 500, // Cache only nearby items
                             itemBuilder: (context, index) {
                               final message = _messages[index];
                               final isCurrentUser =
@@ -664,11 +689,9 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                               );
 
                               return AnimatedOpacity(
-                                duration: const Duration(milliseconds: 300),
-                                opacity: isTemporary ? 0.7 : 1.0,
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeOutQuint,
+                                duration: const Duration(milliseconds: 200), // Faster opacity change
+                                opacity: isTemporary ? 0.8 : 1.0, // Less dramatic opacity difference
+                                child: Container( // Remove AnimatedContainer to reduce animation conflicts
                                   margin: const EdgeInsets.only(bottom: 12),
                                   child: GestureDetector(
                                     onLongPress: () {
@@ -773,23 +796,7 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                                                 ),
                                                 Row(
                                                   children: [
-                                                    // Show encryption indicator
-                                                    if (message.isEncrypted &&
-                                                        !isTemporary)
-                                                      Tooltip(
-                                                        message:
-                                                            'End-to-End Encrypted',
-                                                        child: Icon(
-                                                          Icons.lock,
-                                                          size: 12,
-                                                          color:
-                                                              isCurrentUser
-                                                                  ? Colors
-                                                                      .white70
-                                                                  : Colors
-                                                                      .green[300],
-                                                        ),
-                                                      ),
+                                                    // Hide encryption indicators from UI
                                                     if (isTemporary)
                                                       Container(
                                                         margin:
@@ -830,34 +837,25 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                                               ],
                                             ),
 
-                                            // Only show "Message from before you joined" when the message is blank due to encryption
-                                            // This happens when the user can't decrypt the message because they weren't present when it was sent
-                                            if (message.isEncrypted && message.text.isEmpty && !isTemporary)
-                                            Container(
-                                              margin: const EdgeInsets.only(top: 4, bottom: 4),
-                                              child: Row(
-                                                children: [
-                                                  Icon(
-                                                    Icons.lock,
-                                                    size: 14,
-                                                    color: Colors.amber,
-                                                  ),
-                                                  const SizedBox(width: 4),
-                                                  Text(
-                                                    "Message from before you joined",
-                                                    style: TextStyle(
-                                                      fontStyle: FontStyle.italic,
-                                                      color: isCurrentUser
-                                                          ? Colors.white70
-                                                          : (isDarkMode
-                                                              ? Colors.grey[400]
-                                                              : Colors.grey[600]),
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
+                            // Show compact "Message from before you joined" for blank encrypted messages
+                            if (message.isEncrypted && 
+                                message.text.isEmpty && 
+                                !isTemporary)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                "🔒✨ Message from before you joined",
+                                style: TextStyle(
+                                  fontStyle: FontStyle.italic,
+                                  color: isCurrentUser
+                                      ? Colors.white60
+                                      : (isDarkMode
+                                          ? Colors.grey[500]
+                                          : Colors.grey[500]),
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
 
                                             // Reply indicator if this is a reply
                                             if (message.replyToId != null)
@@ -939,11 +937,12 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                                                 // Removed the lock icon that was showing on the left side
                                                 Expanded(
                                                   child: Text(
+                                                    // Smart message display logic
                                                     message.text.isNotEmpty
                                                         ? message.text
                                                         : (isTemporary
                                                             ? 'Sending...'
-                                                            : ''),
+                                                            : ''), // Always empty for non-temp messages without text
                                                     style: TextStyle(
                                                       color:
                                                           isCurrentUser
@@ -1067,62 +1066,14 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
-                  // Show encryption indicator in text field
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color:
-                          _isEncryptionInitialized
-                              ? Colors.green.withOpacity(0.1)
-                              : Colors.orange.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Tooltip(
-                      message:
-                          _isEncryptionInitialized
-                              ? 'End-to-End Encrypted'
-                              : 'Encryption setup in progress',
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _isEncryptionInitialized
-                                ? Icons.lock
-                                : Icons.lock_open,
-                            size: 16,
-                            color:
-                                _isEncryptionInitialized
-                                    ? Colors.green
-                                    : Colors.orange,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            _isEncryptionInitialized
-                                ? 'Encrypted'
-                                : 'Unencrypted',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color:
-                                  _isEncryptionInitialized
-                                      ? Colors.green
-                                      : Colors.orange,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
+                  // Hide encryption indicators from input area
                   // Text field
                   Expanded(
                     child: TextField(
                       controller: _messageController,
                       style: TextStyle(color: textColor),
                       decoration: InputDecoration(
-                        hintText:
-                            _isEncryptionInitialized
-                                ? 'Type a message...'
-                                : 'Setting up encryption...',
+                        hintText: 'Type a message...',
                         hintStyle: TextStyle(
                           color:
                               isDarkMode ? Colors.grey[400] : Colors.grey[600],
@@ -1160,33 +1111,26 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                         ),
                       ),
                       textInputAction: TextInputAction.send,
-                      onSubmitted:
-                          (_) =>
-                              _isEncryptionInitialized ? _sendMessage() : null,
-                      enabled: _isEncryptionInitialized,
+                      onSubmitted: (_) => _sendMessage(),
                     ),
                   ),
                   const SizedBox(width: 8),
                   // Send button
                   Material(
-                    color: _isEncryptionInitialized ? Colors.blue : Colors.grey,
+                    color: Colors.blue,
                     borderRadius: BorderRadius.circular(24),
                     elevation: 2,
                     child: InkWell(
-                      onTap: _isEncryptionInitialized ? _sendMessage : null,
+                      onTap: _sendMessage,
                       borderRadius: BorderRadius.circular(24),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
+                      child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          gradient:
-                              _isEncryptionInitialized
-                                  ? const LinearGradient(
-                                    colors: [Colors.blue, Colors.purple],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  )
-                                  : null,
+                          gradient: const LinearGradient(
+                            colors: [Colors.blue, Colors.purple],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                           borderRadius: BorderRadius.circular(24),
                         ),
                         child: const Icon(
