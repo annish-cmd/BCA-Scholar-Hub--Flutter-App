@@ -5,6 +5,7 @@ import '../utils/favorites_provider.dart';
 import '../models/pdf_note.dart';
 import '../models/firebase_note.dart';
 import '../services/database_service.dart';
+import '../utils/algo/collaborative_filtering_algorithm.dart';
 import 'pdf_viewer_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -33,9 +34,16 @@ class PdfDetailsScreen extends StatefulWidget {
 class _PdfDetailsScreenState extends State<PdfDetailsScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
-  final List<FirebaseNote> _relatedNotes = [];
+  final List<FirebaseNote> _semesterNotes = []; // Rule-based recommendations
+  final List<FirebaseNote> _categoryNotes = []; // Content-based recommendations
   final DatabaseService _databaseService = DatabaseService();
+  final CollaborativeFilteringAlgorithm _recommendationAlgorithm = CollaborativeFilteringAlgorithm();
   bool _loadingRelated = false;
+  
+  // Cache for faster subsequent loads
+  static List<FirebaseNote>? _cachedAllNotes;
+  static DateTime? _cacheTime;
+  static const Duration _cacheExpiry = Duration(minutes: 5);
 
   @override
   void initState() {
@@ -48,6 +56,14 @@ class _PdfDetailsScreenState extends State<PdfDetailsScreen>
     // Load related notes once when the screen is created
     String? currentSemester = widget.firebaseNote?.semester;
     String currentSubject = widget.pdfNote.subject;
+    
+    // Debug current note details
+    logger.i('🔍 Current note details:');
+    logger.i('   Title: "${widget.pdfNote.title}"');
+    logger.i('   Subject: "$currentSubject"');
+    logger.i('   Semester (raw): "$currentSemester"');
+    logger.i('   Firebase Note ID: "${widget.firebaseNote?.id}"');
+    
     _loadRelatedNotes(currentSemester, currentSubject);
   }
   
@@ -59,46 +75,203 @@ class _PdfDetailsScreenState extends State<PdfDetailsScreen>
     });
     
     try {
-      List<FirebaseNote> notes = [];
+      logger.i('🚀 Fast loading recommendations for: ${widget.pdfNote.title}');
+      logger.i('📚 Original semester: "$currentSemester", Subject: "$currentSubject"');
+      final stopwatch = Stopwatch()..start();
       
-      // If we have a semester, prioritize notes from the same semester
-      if (currentSemester != null) {
-        notes = await _databaseService.getSemesterNotes(currentSemester);
-        
-        // Filter out the current note
-        notes = notes.where((note) => 
-          note.id != widget.firebaseNote?.id && 
-          note.title != widget.pdfNote.title
-        ).toList();
+      // TEMPORARY: Clear cache to force fresh data for debugging
+      if (_cachedAllNotes != null) {
+        logger.w('🔄 Clearing cache for debugging...');
+        _cachedAllNotes = null;
+        _cacheTime = null;
       }
       
-      // If we have fewer than 3 notes, add extra courses
-      final extraNotes = await _databaseService.getExtraCourseNotes();
-      for (var note in extraNotes) {
-        if (notes.length < 3 && 
-            !notes.any((n) => n.id == note.id) && 
-            note.id != widget.firebaseNote?.id &&
-            note.title != widget.pdfNote.title) {
-          notes.add(note);
+      // Check cache first for super fast loading
+      List<FirebaseNote> allNotes = [];
+      if (_cachedAllNotes != null && 
+          _cacheTime != null && 
+          DateTime.now().difference(_cacheTime!) < _cacheExpiry) {
+        allNotes = _cachedAllNotes!;
+        logger.i('⚡ Using cached notes (${allNotes.length} notes) - ${stopwatch.elapsedMilliseconds}ms');
+        
+        // Debug cache contents - show semester distribution
+        final semesterCounts = <String, int>{};
+        for (var note in allNotes) {
+          final semester = note.semester ?? 'null';
+          semesterCounts[semester] = (semesterCounts[semester] ?? 0) + 1;
+        }
+        logger.i('📊 Cache semester distribution: $semesterCounts');
+      } else {
+        // Fast parallel fetching - only fetch what we need
+        logger.i('📡 Fetching fresh data...');
+        
+        // Priority 1: Current semester + adjacent semesters (for speed)
+        final prioritySemesters = _getPrioritySemesters(currentSemester ?? '1st');
+        
+        // Priority 2: Extra courses
+        final futures = <Future<List<FirebaseNote>>>[];
+        
+        // Fetch priority semesters in parallel
+        logger.i('🔄 Fetching semesters: $prioritySemesters');
+        for (String semester in prioritySemesters) {
+          futures.add(_databaseService.getSemesterNotes(semester));
+        }
+        
+        // Fetch extra courses in parallel
+        futures.add(_databaseService.getExtraCourseNotes());
+        
+        // Execute all fetches in parallel
+        final results = await Future.wait(futures, eagerError: false);
+        
+        // Combine results with detailed logging
+        for (int i = 0; i < results.length; i++) {
+          final result = results[i];
+          if (i < prioritySemesters.length) {
+            logger.i('📚 ${prioritySemesters[i]} semester: ${result.length} notes');
+            // Log semester values for debugging
+            if (result.isNotEmpty) {
+              result.take(3).forEach((note) => 
+                logger.d('   - "${note.title}" (semester: "${note.semester}")'));
+            }
+          } else {
+            logger.i('🎓 Extra courses: ${result.length} notes');
+          }
+          allNotes.addAll(result);
+        }
+        
+        // Cache for next time
+        _cachedAllNotes = allNotes;
+        _cacheTime = DateTime.now();
+        
+        logger.i('⚡ Fetched ${allNotes.length} notes in ${stopwatch.elapsedMilliseconds}ms');
+      }
+      
+      // Fast hybrid processing
+      if (allNotes.isNotEmpty && widget.firebaseNote != null) {
+        // Normalize the current semester - if empty/null, treat as extra course
+        String normalizedCurrentSemester = currentSemester ?? '';
+        if (normalizedCurrentSemester.isEmpty || 
+            normalizedCurrentSemester.toLowerCase().contains('extra') ||
+            normalizedCurrentSemester == 'null') {
+          normalizedCurrentSemester = 'extra';
+        }
+        
+        logger.i('🔧 Normalized semester: "$normalizedCurrentSemester" (from "$currentSemester")');
+        
+        final recommendations = _recommendationAlgorithm.getHybridRecommendations(
+          allNotes: allNotes,
+          currentUserSemester: normalizedCurrentSemester,
+          currentlyViewingNote: widget.firebaseNote,
+          maxSuggestions: 20, // Increased for more recommendations
+        );
+        
+        final semesterRecommendations = recommendations['semester_notes'] ?? [];
+        final contentBasedRecommendations = recommendations['you_might_like'] ?? [];
+        
+        if (mounted) {
+          setState(() {
+            _semesterNotes.clear();
+            _categoryNotes.clear();
+            
+            // Rule-based: Semester notes (up to 5) - exclude current note
+            final filteredSemesterNotes = semesterRecommendations.where((note) {
+              return note.id != widget.firebaseNote?.id && note.title != widget.pdfNote.title;
+            }).take(5);
+            _semesterNotes.addAll(filteredSemesterNotes);
+            
+            // Content-based: Show ALL available notes in same category - exclude current note
+            final filteredCategoryNotes = contentBasedRecommendations.where((note) {
+              return note.id != widget.firebaseNote?.id && note.title != widget.pdfNote.title;
+            });
+            _categoryNotes.addAll(filteredCategoryNotes); // No limit - show all
+            
+            _loadingRelated = false;
+          });
+          
+          stopwatch.stop();
+          logger.i('✅ Total loading time: ${stopwatch.elapsedMilliseconds}ms');
+          logger.i('📊 Loaded ${_semesterNotes.length} semester + ${_categoryNotes.length} category notes');
+        }
+      } else {
+        // Fast fallback
+        final quickRecommendations = _getQuickRecommendations(allNotes, currentSemester, currentSubject);
+        
+        if (mounted) {
+          setState(() {
+            _semesterNotes.clear();
+            _categoryNotes.clear();
+            
+            // Filter out current note from quick recommendations
+            final filteredQuickRecs = quickRecommendations.where((note) {
+              return note.id != widget.firebaseNote?.id && note.title != widget.pdfNote.title;
+            }).toList();
+            
+            _semesterNotes.addAll(filteredQuickRecs.take(5));
+            _categoryNotes.addAll(filteredQuickRecs.skip(5)); // Show all remaining
+            _loadingRelated = false;
+          });
+          
+          stopwatch.stop();
+          logger.i('⚡ Fast fallback completed in ${stopwatch.elapsedMilliseconds}ms');
         }
       }
       
-      // Update the state if still mounted
-      if (mounted) {
-        setState(() {
-          _relatedNotes.clear();
-          _relatedNotes.addAll(notes.take(3));
-          _loadingRelated = false;
-        });
-      }
     } catch (e) {
-      logger.d('Error loading related notes: $e');
+      logger.e('❌ Fast loading failed: $e');
+      
+      // Ultra-fast emergency fallback
       if (mounted) {
         setState(() {
           _loadingRelated = false;
         });
       }
     }
+  }
+
+  // Get priority semesters for faster loading
+  List<String> _getPrioritySemesters(String currentSemester) {
+    final allSemesters = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
+    final priorityList = <String>[];
+    
+    logger.i('🎯 Building priority list for semester: "$currentSemester"');
+    
+    // Add current semester first
+    priorityList.add(currentSemester);
+    
+    // Add adjacent semesters
+    final currentIndex = allSemesters.indexOf(currentSemester);
+    logger.i('📍 Current semester index: $currentIndex for "$currentSemester"');
+    
+    if (currentIndex > 0) {
+      priorityList.add(allSemesters[currentIndex - 1]);
+      logger.i('➕ Added previous semester: ${allSemesters[currentIndex - 1]}');
+    }
+    if (currentIndex < allSemesters.length - 1) {
+      priorityList.add(allSemesters[currentIndex + 1]);
+      logger.i('➕ Added next semester: ${allSemesters[currentIndex + 1]}');
+    }
+    
+    // Add remaining semesters
+    for (String semester in allSemesters) {
+      if (!priorityList.contains(semester)) {
+        priorityList.add(semester);
+      }
+    }
+    
+    final finalList = priorityList.take(8).toList(); // Fetch all semesters for debugging
+    logger.i('🎯 Final priority list: $finalList');
+    return finalList;
+  }
+
+  // Quick recommendations for fallback
+  List<FirebaseNote> _getQuickRecommendations(List<FirebaseNote> allNotes, String? currentSemester, String currentSubject) {
+    return allNotes.where((note) {
+      return note.id != widget.firebaseNote?.id && 
+             note.title != widget.pdfNote.title &&
+             (note.semester == currentSemester ||
+              note.category.toLowerCase().contains(currentSubject.toLowerCase()) ||
+              currentSubject.toLowerCase().contains(note.category.toLowerCase()));
+    }).toList(); // No limit - return all matching notes
   }
 
   @override
@@ -430,79 +603,26 @@ class _PdfDetailsScreenState extends State<PdfDetailsScreen>
 
                     const SizedBox(height: 20),
 
-                    // Related section - fixed height, horizontal scroll
-                    SizedBox(
-                      height: 190,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        margin: const EdgeInsets.only(bottom: 20),
-                        decoration: BoxDecoration(
-                          color: isDarkMode
-                              ? Colors.black.withAlpha(77)
-                              : Colors.white.withAlpha(128),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isDarkMode
-                                ? Colors.grey.withAlpha(51)
-                                : Colors.white.withAlpha(204),
-                            width: 1.0,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withAlpha(13),
-                              blurRadius: 10,
-                              spreadRadius: 0,
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Related Subjects',
-                              style: TextStyle(
-                                color: textColor,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Expanded(
-                              child: _loadingRelated && _relatedNotes.isEmpty
-                                  ? Center(
-                                      child: SizedBox(
-                                        width: 30,
-                                        height: 30,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(
-                                            isDarkMode ? Colors.blue[300]! : Colors.blue,
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                  : _relatedNotes.isEmpty
-                                      ? Center(
-                                          child: Text(
-                                            'No related notes found.',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
-                                            ),
-                                          ),
-                                        )
-                                      : ListView(
-                                          scrollDirection: Axis.horizontal,
-                                          physics: const BouncingScrollPhysics(),
-                                          children: _buildRelatedSubjectCards(isDarkMode),
-                                        ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    // Rule-Based Section - Semester Recommendations
+                    _buildRecommendationSection(
+                      title: '📚 Same Semester Notes',
+                      notes: _semesterNotes,
+                      isDarkMode: isDarkMode,
+                      textColor: textColor,
+                      emptyMessage: 'No semester notes found.',
                     ),
+
+                    const SizedBox(height: 16),
+
+                    // Content-Based Section - Category Recommendations
+                    _buildRecommendationSection(
+                      title: '🎯 You Might Also Like',
+                      notes: _categoryNotes,
+                      isDarkMode: isDarkMode,
+                      textColor: textColor,
+                      emptyMessage: 'No similar notes found.',
+                    ),
+
                   ],
                 ),
               ),
@@ -586,12 +706,93 @@ class _PdfDetailsScreenState extends State<PdfDetailsScreen>
     );
   }
 
-  List<Widget> _buildRelatedSubjectCards(bool isDarkMode) {
-    // Remove call to _loadRelatedNotes from here
-    if (_relatedNotes.isEmpty) {
+  // Build recommendation section widget
+  Widget _buildRecommendationSection({
+    required String title,
+    required List<FirebaseNote> notes,
+    required bool isDarkMode,
+    required Color textColor,
+    required String emptyMessage,
+  }) {
+    return SizedBox(
+      height: 190,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: isDarkMode
+              ? Colors.black.withAlpha(77)
+              : Colors.white.withAlpha(128),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDarkMode
+                ? Colors.grey.withAlpha(51)
+                : Colors.white.withAlpha(204),
+            width: 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(13),
+              blurRadius: 10,
+              spreadRadius: 0,
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                color: textColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: _loadingRelated && notes.isEmpty
+                  ? Center(
+                      child: SizedBox(
+                        width: 30,
+                        height: 30,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            isDarkMode ? Colors.blue[300]! : Colors.blue,
+                          ),
+                        ),
+                      ),
+                    )
+                  : notes.isEmpty
+                      ? Center(
+                          child: Text(
+                            emptyMessage,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
+                            ),
+                          ),
+                        )
+                      : ListView(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          children: _buildRelatedSubjectCards(notes, isDarkMode),
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildRelatedSubjectCards(List<FirebaseNote> notes, bool isDarkMode) {
+    if (notes.isEmpty) {
       return [];
     }
-    return _relatedNotes.map((note) {
+    return notes.map((note) {
       return Padding(
         padding: const EdgeInsets.only(right: 16.0),
         child: GestureDetector(

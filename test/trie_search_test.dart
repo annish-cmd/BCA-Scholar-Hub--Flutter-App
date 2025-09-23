@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import '../lib/utils/encryption/algorithms/trie_search_algorithm.dart';
+import '../lib/utils/algo/trie_search_algorithm.dart';
 
 void main() {
   group('TrieSearchAlgorithm Tests', () {

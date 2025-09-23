@@ -1,7 +1,7 @@
 import '../models/search_result.dart';
 import '../models/firebase_note.dart';
 import '../services/database_service.dart';
-import '../utils/encryption/algorithms/trie_search_algorithm.dart';
+import '../utils/algo/trie_search_algorithm.dart';
 import 'package:logger/logger.dart';
 
 class SearchService {
