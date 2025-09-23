@@ -6,6 +6,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../services/database_service.dart';
 import '../services/chat_service.dart';
+import '../services/storage_service.dart';
 
 class AuthProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -14,6 +15,7 @@ class AuthProvider with ChangeNotifier {
   final DatabaseService _databaseService = DatabaseService();
   final ChatService _chatService = ChatService();
   final FirebaseDatabase _database = FirebaseDatabase.instance;
+  final StorageService _storageService = StorageService();
 
   bool get isLoggedIn => _auth.currentUser != null;
   String? get userEmail => _auth.currentUser?.email;
@@ -105,7 +107,7 @@ class AuthProvider with ChangeNotifier {
   }
 
   // Sign in with email and password
-  Future<UserCredential> login(String email, String password) async {
+  Future<UserCredential> login(String email, String password, {bool rememberMe = false}) async {
     try {
       _logger.d('Attempting to login with email: $email');
 
@@ -141,6 +143,14 @@ class AuthProvider with ChangeNotifier {
         await _databaseService.saveUserData(userCredential.user!);
         // Initialize encryption
         await _initializeEncryption();
+        
+        // Handle remember me functionality
+        if (rememberMe) {
+          await _storageService.saveRememberMe(true, email: email.trim(), password: password);
+          _logger.i('User credentials saved for remember me functionality');
+        } else {
+          await _storageService.saveRememberMe(false);
+        }
       }
 
       _logger.i('Login successful for user: ${userCredential.user?.email}');
@@ -285,12 +295,19 @@ class AuthProvider with ChangeNotifier {
   }
 
   // Sign out
-  Future<void> logout() async {
+  Future<void> logout({bool clearRememberMe = false}) async {
     try {
       // Sign out from Google if signed in with Google and not on web
       if (!kIsWeb) {
         await _googleSignIn.signOut();
       }
+      
+      // Clear remember me data if requested
+      if (clearRememberMe) {
+        await _storageService.clearSavedCredentials();
+        _logger.i('Remember me credentials cleared');
+      }
+      
       // Sign out from Firebase
       await _auth.signOut();
       notifyListeners();
@@ -416,5 +433,56 @@ class AuthProvider with ChangeNotifier {
       }
     }
     return 'An unexpected error occurred 😭';
+  }
+
+  // Remember Me functionality methods
+  
+  /// Check if credentials are saved and valid
+  Future<bool> hasSavedCredentials() async {
+    return await _storageService.hasSavedCredentials();
+  }
+
+  /// Get saved credentials for auto-login
+  Future<Map<String, String>?> getSavedCredentials() async {
+    try {
+      final email = await _storageService.getSavedEmail();
+      final password = await _storageService.getSavedPassword();
+      
+      if (email != null && password != null) {
+        return {'email': email, 'password': password};
+      }
+      return null;
+    } catch (e) {
+      _logger.e('Error getting saved credentials: $e');
+      return null;
+    }
+  }
+
+  /// Try auto-login with saved credentials
+  Future<bool> tryAutoLogin() async {
+    try {
+      final savedCredentials = await getSavedCredentials();
+      if (savedCredentials != null) {
+        _logger.i('Attempting auto-login with saved credentials');
+        await login(savedCredentials['email']!, savedCredentials['password']!, rememberMe: true);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      _logger.e('Auto-login failed: $e');
+      // Clear invalid credentials
+      await _storageService.clearSavedCredentials();
+      return false;
+    }
+  }
+
+  /// Get remember me preference
+  Future<bool> getRememberMePreference() async {
+    return await _storageService.getRememberMe();
+  }
+
+  /// Clear saved credentials only (without signing out)
+  Future<void> clearSavedCredentials() async {
+    await _storageService.clearSavedCredentials();
   }
 }

@@ -323,51 +323,89 @@ class _ProfilePageState extends State<ProfilePage> {
 
   void _showLogoutConfirmationDialog(BuildContext context) {
     final localizations = AppLocalizations.of(context);
+    bool forgetCredentials = false;
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(localizations.translate('logout_confirmation')),
-          content: Text(localizations.translate('logout_message')),
-          actions: <Widget>[
-            TextButton(
-              child: Text(localizations.translate('cancel')),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: Text(
-                localizations.translate('logout'),
-                style: const TextStyle(color: Colors.red),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(localizations.translate('logout_confirmation')),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(localizations.translate('logout_message')),
+                  const SizedBox(height: 16),
+                  FutureBuilder<bool>(
+                    future: Provider.of<AuthProvider>(context, listen: false).getRememberMePreference(),
+                    builder: (context, snapshot) {
+                      if (snapshot.data == true) {
+                        return Row(
+                          children: [
+                            Checkbox(
+                              value: forgetCredentials,
+                              onChanged: (value) {
+                                setState(() {
+                                  forgetCredentials = value ?? false;
+                                });
+                              },
+                            ),
+                            Expanded(
+                              child: Text(
+                                'Also forget saved login credentials',
+                                style: TextStyle(fontSize: 14),
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                ],
               ),
-              onPressed: () async {
-                // Get the auth provider and logout
-                final authProvider = Provider.of<AuthProvider>(
-                  context,
-                  listen: false,
-                );
-                await authProvider.logout();
+              actions: <Widget>[
+                TextButton(
+                  child: Text(localizations.translate('cancel')),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+                TextButton(
+                  child: Text(
+                    localizations.translate('logout'),
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                  onPressed: () async {
+                    // Get the auth provider and logout
+                    final authProvider = Provider.of<AuthProvider>(
+                      context,
+                      listen: false,
+                    );
+                    await authProvider.logout(clearRememberMe: forgetCredentials);
 
-                // Navigate back to login screen
-                if (context.mounted) {
-                  Navigator.of(context).pop(); // Close dialog
+                    // Navigate back to login screen
+                    if (context.mounted) {
+                      Navigator.of(context).pop(); // Close dialog
 
-                  // Use the same pages list from main app
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(
-                      builder:
-                          (context) => LoginScreen(
-                            pages: myAppKey.currentState!.getPages(),
-                          ),
-                    ),
-                    (route) => false, // Remove all previous routes
-                  );
-                }
-              },
-            ),
-          ],
+                      // Use the same pages list from main app
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(
+                          builder:
+                              (context) => LoginScreen(
+                                pages: myAppKey.currentState!.getPages(),
+                              ),
+                        ),
+                        (route) => false, // Remove all previous routes
+                      );
+                    }
+                  },
+                ),
+              ],
+            );
+          },
         );
       },
     );

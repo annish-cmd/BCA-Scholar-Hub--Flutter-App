@@ -82,69 +82,91 @@ class _SplashScreenState extends State<SplashScreen>
     });
   }
 
-  void navigateToNextScreen() {
+  void navigateToNextScreen() async {
     // Check if user is logged in with Firebase
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
+    // Try auto-login if credentials are saved and user is not already logged in
+    if (!authProvider.isLoggedIn) {
+      try {
+        final hasAutoLogin = await authProvider.tryAutoLogin();
+        if (hasAutoLogin) {
+          // Auto-login successful, navigate to home
+          _navigateToHome();
+          return;
+        }
+      } catch (e) {
+        // Auto-login failed, continue to normal flow
+      }
+    }
+
     if (authProvider.isLoggedIn) {
       // Navigate to home screen if logged in
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder:
-              (context, animation, secondaryAnimation) => HomeScreen(
-                currentIndex: _currentIndex,
-                pages: widget.pages,
-                onIndexChanged: (index) {
-                  // This will update the state in the MyApp widget using the global key
-                  myAppKey.currentState?.updateIndex(index);
-                },
-              ),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            const begin = Offset(1.0, 0.0);
-            const end = Offset.zero;
-            const curve = Curves.easeInOut;
-
-            var tween = Tween(
-              begin: begin,
-              end: end,
-            ).chain(CurveTween(curve: curve));
-
-            return SlideTransition(
-              position: animation.drive(tween),
-              child: child,
-            );
-          },
-          transitionDuration: const Duration(milliseconds: 800),
-        ),
-      );
+      _navigateToHome();
     } else {
       // Navigate to login screen if not logged in
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder:
-              (context, animation, secondaryAnimation) =>
-                  LoginScreen(pages: widget.pages),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            const begin = Offset(1.0, 0.0);
-            const end = Offset.zero;
-            const curve = Curves.easeInOut;
-
-            var tween = Tween(
-              begin: begin,
-              end: end,
-            ).chain(CurveTween(curve: curve));
-
-            return SlideTransition(
-              position: animation.drive(tween),
-              child: child,
-            );
-          },
-          transitionDuration: const Duration(milliseconds: 800),
-        ),
-      );
+      _navigateToLogin();
     }
+  }
+
+  void _navigateToHome() {
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder:
+            (context, animation, secondaryAnimation) => HomeScreen(
+              currentIndex: _currentIndex,
+              pages: widget.pages,
+              onIndexChanged: (index) {
+                // This will update the state in the MyApp widget using the global key
+                myAppKey.currentState?.updateIndex(index);
+              },
+            ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.easeInOut;
+
+          var tween = Tween(
+            begin: begin,
+            end: end,
+          ).chain(CurveTween(curve: curve));
+
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 800),
+      ),
+    );
+  }
+
+  void _navigateToLogin() {
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder:
+            (context, animation, secondaryAnimation) =>
+                LoginScreen(pages: widget.pages),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.easeInOut;
+
+          var tween = Tween(
+            begin: begin,
+            end: end,
+          ).chain(CurveTween(curve: curve));
+
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 800),
+      ),
+    );
   }
 
   @override

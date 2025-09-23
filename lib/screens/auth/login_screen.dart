@@ -23,16 +23,62 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
+  /// Load saved credentials if remember me is enabled
+  Future<void> _loadSavedCredentials() async {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final rememberMe = await authProvider.getRememberMePreference();
+      
+      if (rememberMe) {
+        final savedCredentials = await authProvider.getSavedCredentials();
+        if (savedCredentials != null) {
+          setState(() {
+            _emailController.text = savedCredentials['email'] ?? '';
+            _passwordController.text = savedCredentials['password'] ?? '';
+            _rememberMe = true;
+          });
+        }
+      }
+    } catch (e) {
+      // If loading fails, just continue with empty fields
+    }
+  }
+
   void _togglePasswordVisibility() {
     setState(() {
       _isPasswordVisible = !_isPasswordVisible;
     });
+  }
+
+  /// Handle remember me checkbox changes
+  Future<void> _handleRememberMeChanged(bool? value) async {
+    final newValue = value ?? false;
+    setState(() {
+      _rememberMe = newValue;
+    });
+
+    // If unchecking remember me, clear saved credentials
+    if (!newValue) {
+      try {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        // Clear stored credentials without logging out current session
+        await authProvider.clearSavedCredentials();
+      } catch (e) {
+        // Just continue if there's an error
+      }
+    }
   }
 
   Future<void> _handleLogin() async {
@@ -49,6 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
         final userCredential = await authProvider.login(
           _emailController.text.trim(),
           _passwordController.text.trim(),
+          rememberMe: _rememberMe,
         );
 
         // Check if widget is still mounted before using context
@@ -475,11 +522,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   width: 24,
                                   child: Checkbox(
                                     value: _rememberMe,
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _rememberMe = value ?? false;
-                                      });
-                                    },
+                                    onChanged: _handleRememberMeChanged,
                                     activeColor: Colors.blue,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(4),
