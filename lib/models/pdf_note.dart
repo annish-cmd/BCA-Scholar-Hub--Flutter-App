@@ -36,4 +36,27 @@ class PdfNote {
       thumbnailImage: thumbnailImage,
     );
   }
+
+  // JSON serialization for caching
+  factory PdfNote.fromJson(Map<String, dynamic> json) {
+    return PdfNote(
+      id: json['id'] ?? '',
+      title: json['title'] ?? '',
+      subject: json['subject'] ?? '',
+      description: json['description'] ?? '',
+      filename: json['filename'] ?? '',
+      thumbnailImage: json['thumbnailImage'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'subject': subject,
+      'description': description,
+      'filename': filename,
+      'thumbnailImage': thumbnailImage,
+    };
+  }
 }

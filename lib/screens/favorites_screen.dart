@@ -9,7 +9,8 @@ import 'pdf_options_screen.dart';
 import 'home_content_screen.dart';
 import '../main.dart'; 
 import 'auth/login_screen.dart';
-import '../services/database_service.dart';
+import '../widgets/thumbnail_image.dart';
+import '../utils/favorites_cache_manager.dart';
 
 
 class FavoritesScreen extends StatefulWidget {
@@ -20,36 +21,44 @@ class FavoritesScreen extends StatefulWidget {
 }
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
-  final DatabaseService _databaseService = DatabaseService();
   List<PdfNote> _allNotes = [];
-  bool _loading = true;
+  final FavoritesCacheManager _cacheManager = FavoritesCacheManager();
 
   @override
   void initState() {
     super.initState();
-    _fetchAllNotes();
+    _loadNotesInstantly();
   }
 
-  Future<void> _fetchAllNotes() async {
-    List<PdfNote> notes = [];
-    // Add hardcoded notes
-    notes.addAll(HomeContentScreen.pdfNotes);
-    // Add Firebase semester notes (for all 8 semesters)
-    for (var sem in ["1st","2nd","3rd","4th","5th","6th","7th","8th"]) {
-      try {
-        final semNotes = await _databaseService.getSemesterNotes(sem);
-        notes.addAll(semNotes.map((n) => n.toPdfNote()));
-      } catch (_) {}
-    }
-    // Add extra courses
-    try {
-      final extraNotes = await _databaseService.getExtraCourseNotes();
-      notes.addAll(extraNotes.map((n) => n.toPdfNote()));
-    } catch (_) {}
-    setState(() {
-      _allNotes = notes;
-      _loading = false;
+  // INSTANT LOADING - Always shows data immediately
+  void _loadNotesInstantly() {
+    final stopwatch = Stopwatch()..start();
+    
+    // Get notes instantly (never null, always has data)
+    _allNotes = _cacheManager.getNotesInstantly();
+    print('🚀 INSTANT: Loaded ${_allNotes.length} notes in ${stopwatch.elapsedMilliseconds}ms');
+    
+    // Update cache asynchronously in background (non-blocking)
+    _updateCacheInBackground();
+  }
+
+  // Update cache in background without affecting UI
+  void _updateCacheInBackground() {
+    _cacheManager.loadAndUpdateCache().then((updatedNotes) {
+      if (mounted && updatedNotes.length != _allNotes.length) {
+        setState(() {
+          _allNotes = updatedNotes;
+        });
+        print('🔄 BACKGROUND: Updated with ${updatedNotes.length} notes');
+      }
     });
+  }
+
+  // Pull-to-refresh functionality - Clear all caches
+  Future<void> _refreshFavorites() async {
+    await _cacheManager.clearCache();
+    _loadNotesInstantly();
+    print('🔄 REFRESH: Cache cleared and reloaded');
   }
 
   @override
@@ -67,10 +76,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       return _buildLoginRequired(context, isDarkMode, textColor);
     }
 
-    if (_loading) {
-      return Center(child: CircularProgressIndicator());
-    }
-
+    // No loading check - always show data instantly
     final List<PdfNote> favoritePdfs = favoritesProvider.getFavoritePdfs(_allNotes);
 
     return Container(
@@ -290,29 +296,51 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           ),
         ),
 
-        // Favorites list
+        // Favorites list with performance optimizations
         Expanded(
-          child: ListView.builder(
-            itemCount: favoritePdfs.length,
-            padding: const EdgeInsets.all(16),
-            itemBuilder: (context, index) {
-              final pdf = favoritePdfs[index];
-              return _buildPdfCard(context, pdf, isDarkMode, textColor);
-            },
+          child: RefreshIndicator(
+            onRefresh: _refreshFavorites,
+            child: ListView.builder(
+              itemCount: favoritePdfs.length,
+              padding: const EdgeInsets.all(16),
+              // Performance optimizations
+              addAutomaticKeepAlives: false,
+              addRepaintBoundaries: true,
+              cacheExtent: 500.0,
+              physics: const BouncingScrollPhysics(),
+              itemBuilder: (context, index) {
+                final pdf = favoritePdfs[index];
+                return _buildOptimizedPdfCard(context, pdf, isDarkMode, textColor, index);
+              },
+            ),
           ),
         ),
       ],
     );
   }
 
+
+  // Optimized PDF card with lazy image loading
+  Widget _buildOptimizedPdfCard(
+    BuildContext context,
+    PdfNote pdf,
+    bool isDarkMode,
+    Color textColor,
+    int index,
+  ) {
+    return RepaintBoundary(
+      key: ValueKey('favorite_card_${pdf.id}_$index'),
+      child: _buildPdfCardContent(context, pdf, isDarkMode, textColor),
+    );
+  }
+
   // Widget to display an individual PDF card
-  Widget _buildPdfCard(
+  Widget _buildPdfCardContent(
     BuildContext context,
     PdfNote pdf,
     bool isDarkMode,
     Color textColor,
   ) {
-    final isNetworkImage = pdf.thumbnailImage.startsWith('http');
     return Card(
       elevation: 3,
       margin: const EdgeInsets.only(bottom: 16),
@@ -336,25 +364,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 topLeft: Radius.circular(12),
                 bottomLeft: Radius.circular(12),
               ),
-              child: isNetworkImage
-                  ? Image.network(
-                      pdf.thumbnailImage,
-                      height: 100,
-                      width: 100,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        height: 100,
-                        width: 100,
-                        color: Colors.grey[300],
-                        child: const Icon(Icons.broken_image),
-                      ),
-                    )
-                  : Image.asset(
-                      'assets/images/${pdf.thumbnailImage}',
-                      height: 100,
-                      width: 100,
-                      fit: BoxFit.cover,
-                    ),
+              child: ThumbnailImage(
+                imageUrl: pdf.thumbnailImage,
+                width: 100,
+                height: 100,
+                fit: BoxFit.cover,
+                isDarkMode: isDarkMode,
+              ),
             ),
 
             // Content

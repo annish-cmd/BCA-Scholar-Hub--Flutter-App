@@ -5,6 +5,8 @@ import '../utils/app_localizations.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 import '../models/pdf_note.dart';
 import 'pdf_options_screen.dart';
+import '../widgets/thumbnail_image.dart';
+import '../utils/favorites_cache_manager.dart';
 
 class HomeContentScreen extends StatefulWidget {
   const HomeContentScreen({super.key});
@@ -92,6 +94,15 @@ class _HomeContentScreenState extends State<HomeContentScreen> {
   // Expose the PDF notes for other screens to use
   List<PdfNote> getPdfNotes() {
     return HomeContentScreen.pdfNotes;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Preload favorites data in background for instant loading
+    Future.delayed(Duration(milliseconds: 500), () {
+      FavoritesCacheManager().preloadInBackground();
+    });
   }
 
   @override
@@ -301,9 +312,12 @@ class _HomeContentScreenState extends State<HomeContentScreen> {
                                   child: SizedBox(
                                     width: 80,
                                     height: 80,
-                                    child: Image.asset(
-                                      'assets/images/${note.thumbnailImage}',
+                                    child: ThumbnailImage(
+                                      imageUrl: note.thumbnailImage,
+                                      width: 80,
+                                      height: 80,
                                       fit: BoxFit.cover,
+                                      isDarkMode: isDarkMode,
                                     ),
                                   ),
                                 ),

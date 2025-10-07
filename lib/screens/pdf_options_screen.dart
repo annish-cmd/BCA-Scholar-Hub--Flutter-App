@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:logger/logger.dart';
+import '../widgets/thumbnail_image.dart';
 
 // Add a logger instance at the top of the file
 final Logger logger = Logger();
@@ -128,9 +129,10 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
                             child: Stack(
                               children: [
                                 Positioned.fill(
-                                  child: Image.asset(
-                                    'assets/images/${widget.pdfNote.thumbnailImage}',
+                                  child: ThumbnailImage(
+                                    imageUrl: widget.pdfNote.thumbnailImage,
                                     fit: BoxFit.cover,
+                                    isDarkMode: isDarkMode,
                                   ),
                                 ),
                                 Positioned.fill(

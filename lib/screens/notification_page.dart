@@ -166,7 +166,7 @@ class _NotificationPageState extends State<NotificationPage> {
                                             children: [
                                               Expanded(
                                                 child: Text(
-                                                  notif.title,
+                                                  '${notif.title} Notes',
                                                   style: TextStyle(
                                                     fontWeight: FontWeight.bold,
                                                     fontSize: 16,
