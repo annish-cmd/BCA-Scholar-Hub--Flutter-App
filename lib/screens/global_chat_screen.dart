@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -20,15 +21,12 @@ class GlobalChatScreen extends StatefulWidget {
 class _GlobalChatScreenState extends State<GlobalChatScreen> {
   late ChatService _chatService;
   List<ChatMessage> _messages = [];
-  List<ChatMessage> _tempMessages = [];
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   String _errorMessage = '';
   bool _isLoading = true;
   bool _isEncryptionInitialized = false;
   ChatMessage? _replyingToMessage;
-  bool isReplyMode = false;
-  ChatMessage? replyToMessage;
   final Logger _logger = Logger();
   
   // Optimization: Reduce rebuild frequency
@@ -51,9 +49,12 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
     _loadMessagesImmediately();
   }
 
-  // Load messages with high priority
+  // Load messages with high priority and force encryption
   Future<void> _loadMessagesImmediately() async {
     try {
+      // Force encryption initialization immediately
+      await _chatService.checkAndInitializeEncryption();
+      
       // Use the optimized cached messages method
       final cachedMessages = await _chatService.getCachedMessages();
 
@@ -77,12 +78,13 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
       // Check encryption status in parallel
       _checkEncryptionStatus();
 
-      // Force refresh messages after a short delay to ensure all messages are visible
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          _chatService.refreshMessages();
-        }
-      });
+      // Force decryption of any remaining encrypted messages without clearing cache
+      if (mounted && _chatService.isEncryptionInitialized) {
+        await _chatService.checkAndInitializeEncryption();
+      }
+      
+      // Set up periodic refresh to ensure all messages are decrypted
+      _setupPeriodicDecryptionCheck();
 
       // Clear any existing error messages
       _errorMessage = '';
@@ -92,45 +94,65 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
       // Even if this fails, still set up the message listener
       _setupMessageListener();
       _checkEncryptionStatus();
+      _setupPeriodicDecryptionCheck();
     }
   }
+  
+  // Periodically check if any messages need decryption
+  void _setupPeriodicDecryptionCheck() {
+    // Check every 2 seconds for encrypted messages
+    Timer.periodic(const Duration(seconds: 2), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      
+      // Check if any messages are still showing as encrypted
+      bool hasEncryptedMessages = _messages.any((msg) => 
+        msg.isEncrypted && (msg.text.isEmpty || msg.text == '🔒 Encrypted message'));
+      
+      if (hasEncryptedMessages && _chatService.isEncryptionInitialized) {
+        _logger.i('Found encrypted messages, forcing refresh...');
+        _chatService.refreshMessages();
+      }
+      
+      // Cancel timer after 30 seconds to save resources
+      if (timer.tick > 15) {
+        timer.cancel();
+      }
+    });
+  }
 
-  // Set up real-time listener for message updates
+  // Set up real-time listener for message updates with instant response
   void _setupMessageListener() {
     _chatService.getMessagesStream().listen(
       (messages) {
-        if (mounted && !_hasUpdatesScheduled) {
-          _hasUpdatesScheduled = true;
+        if (mounted) {
+          // Skip update check for instant response
+          final bool shouldScrollToBottom = 
+              _scrollController.hasClients &&
+              (_scrollController.position.maxScrollExtent - _scrollController.offset) < 200;
           
-          // Always update messages in real-time - don't block during sending
-          Future.microtask(() {
-            if (mounted) {
-              final bool shouldScrollToBottom = 
-                  _scrollController.hasClients &&
-                  (_scrollController.position.maxScrollExtent - _scrollController.offset) < 200;
-              
-              // Always update with latest Firebase messages
-              setState(() {
-                _messages = messages;
-                _isLoading = false;
-              });
-
-              // Auto-scroll for new messages
-              if (shouldScrollToBottom && !_isScrolling) {
-                _scrollToBottomSmooth();
-              }
-              
-              // Check for very recent messages and scroll
-              final now = DateTime.now().millisecondsSinceEpoch;
-              final hasVeryNewMessage = messages.any((m) => (now - m.timestamp) < 3000);
-              
-              if (hasVeryNewMessage && !_isScrolling) {
-                _scrollToBottomSmooth();
-              }
-              
-              _hasUpdatesScheduled = false;
-            }
+          final bool hasNewMessages = messages.length > _messages.length;
+          
+          // Instant state update - no delay
+          setState(() {
+            _messages = messages;
+            _isLoading = false;
+            _hasUpdatesScheduled = false;
           });
+
+          // Instant auto-scroll for new messages
+          if (shouldScrollToBottom && !_isScrolling && hasNewMessages) {
+            // Immediate scroll with no delay
+            if (_scrollController.hasClients) {
+              _scrollController.animateTo(
+                _scrollController.position.maxScrollExtent,
+                duration: const Duration(milliseconds: 100),
+                curve: Curves.easeOut,
+              );
+            }
+          }
         }
       },
       onError: (error) {
@@ -145,27 +167,29 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
     );
   }
 
-  // Check encryption status
-  void _checkEncryptionStatus() {
+  // Check encryption status and force decryption
+  void _checkEncryptionStatus() async {
     _isEncryptionInitialized = _chatService.isEncryptionInitialized;
 
-    // If not initialized, try initializing now
-    if (!_isEncryptionInitialized) {
-      _chatService
-          .checkAndInitializeEncryption()
-          .then((_) {
-            if (mounted) {
-              setState(() {
-                _isEncryptionInitialized = _chatService.isEncryptionInitialized;
-              });
-            }
-          })
-          .catchError((e) {
-            _logger.e('Error initializing encryption: $e');
-          });
+    // Always try to initialize and decrypt messages
+    try {
+      await _chatService.checkAndInitializeEncryption();
+      
+      if (mounted) {
+        setState(() {
+          _isEncryptionInitialized = _chatService.isEncryptionInitialized;
+        });
+        
+        // Force decrypt without clearing cache
+        _chatService.checkAndInitializeEncryption();
+      }
+    } catch (e) {
+      _logger.e('Error initializing encryption: $e');
     }
 
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
@@ -205,105 +229,89 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
     _scrollToBottomSmooth();
   }
   
-  // Always allow message updates for real-time behavior
-  bool _hasMessagesChanged(List<ChatMessage> newMessages) {
-    // Always return true to ensure real-time updates
-    return true;
+  // Get messages - only Firebase messages, no optimistic UI
+  List<ChatMessage> get _combinedMessages {
+    return _messages;
   }
 
-  // Send message
+
+  // Send message - clean approach without temporary messages
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isNotEmpty && !_isSendingMessage) {
       final messageText = _messageController.text.trim();
-      _messageController.clear();
-      
-      // Minimal sending flag - don't block Firebase updates
-      _isSendingMessage = true;
+      final user = firebase_auth.FirebaseAuth.instance.currentUser;
+      if (user == null) return;
 
-      // Scroll to bottom immediately when user sends
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottomSmooth();
+      final replyToId = _replyingToMessage?.id;
+      final replyToUserName = _replyingToMessage?.userName;
+      final replyToText = _replyingToMessage?.text;
+      
+      // Clear input and reply state immediately
+      _messageController.clear();
+      setState(() {
+        if (_replyingToMessage != null) {
+          _replyingToMessage = null;
+        }
       });
 
+      // Mark as sending to prevent duplicate sends
+      _isSendingMessage = true;
+
       try {
-        // First, force check the encryption status (without rebuilding UI)
+        // Initialize encryption if needed (without UI updates)
         if (!_isEncryptionInitialized) {
           await _chatService.checkAndInitializeEncryption();
           _isEncryptionInitialized = _chatService.isEncryptionInitialized;
-          // Don't call setState here to prevent UI rebuilds during message sending
         }
 
-        // Send message to the service
-        final replyToId = _replyingToMessage?.id;
+        // Send message to Firebase
         final success = await _chatService.sendMessage(
           messageText,
           replyToId: replyToId,
         );
-        
-        // Always reset sending flag immediately after attempt
-        _isSendingMessage = false;
 
         if (!success) {
-          // If failed with encryption, try again without encryption
-          if (_isEncryptionInitialized) {
-            // Don't update UI state during retry to prevent rebuilds
-            _isEncryptionInitialized = false;
-
-            final retrySuccess = await _chatService.sendMessage(
-              messageText,
-              replyToId: replyToId,
-            );
-
-            if (!retrySuccess) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Failed to send message. Please restart the app and try again.',
-                  ),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          } else {
+          // Show error message
+          if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Failed to send message. Please try again.'),
                 backgroundColor: Colors.red,
+                duration: Duration(seconds: 2),
               ),
             );
           }
+        } else {
+          // Success - immediate scroll for faster UX
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && _scrollController.hasClients) {
+              _scrollController.animateTo(
+                _scrollController.position.maxScrollExtent,
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
+              );
+            }
+          });
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error sending message: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error sending message: ${e.toString()}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       } finally {
-        // Always reset sending flag to allow Firebase updates
         _isSendingMessage = false;
       }
-
-      // Clear reply if there was one
-      if (_replyingToMessage != null) {
-        setState(() {
-          _replyingToMessage = null;
-        });
-      }
-      
-      // Force scroll to bottom after sending
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (mounted) {
-          _scrollToBottomSmooth();
-        }
-      });
     }
   }
   
   // Helper method to check if there are any temporary messages
   bool _hasAnyTempMessages() {
-    return _tempMessages.isNotEmpty || _messages.any((m) => m.id.startsWith('temp-'));
+    return _messages.any((m) => m.id.startsWith('temp-'));
   }
   
   // Helper method to check if message is older than 5 minutes
@@ -639,7 +647,7 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                           ],
                         ),
                       )
-                      : _messages.isEmpty
+                      : _combinedMessages.isEmpty
                       ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -674,31 +682,23 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                           ListView.builder(
                             controller: _scrollController,
                             padding: const EdgeInsets.all(16),
-                            itemCount: _messages.length,
+                            itemCount: _combinedMessages.length,
                             // Performance optimizations
                             addAutomaticKeepAlives: false, // Don't keep offscreen widgets alive
                             addRepaintBoundaries: true, // Isolate repaints
                             cacheExtent: 500, // Cache only nearby items
                             itemBuilder: (context, index) {
-                              final message = _messages[index];
+                              final message = _combinedMessages[index];
                               final isCurrentUser =
                                   message.userId ==
                                   authProvider.currentUser?.uid;
-                              final isTemporary = message.id.startsWith(
-                                'temp-',
-                              );
 
-                              return AnimatedOpacity(
-                                duration: const Duration(milliseconds: 200), // Faster opacity change
-                                opacity: isTemporary ? 0.8 : 1.0, // Less dramatic opacity difference
-                                child: Container( // Remove AnimatedContainer to reduce animation conflicts
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  child: GestureDetector(
-                                    onLongPress: () {
-                                      if (!isTemporary) {
-                                        _showMessageOptions(context, message);
-                                      }
-                                    },
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                child: GestureDetector(
+                                  onLongPress: () {
+                                    _showMessageOptions(context, message);
+                                  },
                                     child: Align(
                                       alignment:
                                           isCurrentUser
@@ -796,25 +796,6 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                                                 ),
                                                 Row(
                                                   children: [
-                                                    // Hide encryption indicators from UI
-                                                    if (isTemporary)
-                                                      Container(
-                                                        margin:
-                                                            const EdgeInsets.only(
-                                                              right: 4,
-                                                            ),
-                                                        width: 8,
-                                                        height: 8,
-                                                        child: CircularProgressIndicator(
-                                                          strokeWidth: 2,
-                                                          color:
-                                                              isCurrentUser
-                                                                  ? Colors
-                                                                      .white70
-                                                                  : Colors
-                                                                      .blue[300],
-                                                        ),
-                                                      ),
                                                     const SizedBox(width: 4),
                                                     Text(
                                                       _formatTimestamp(
@@ -839,8 +820,7 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
 
                             // Show compact "Message from before you joined" for blank encrypted messages
                             if (message.isEncrypted && 
-                                message.text.isEmpty && 
-                                !isTemporary)
+                                message.text.isEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 2),
                               child: Text(
@@ -940,9 +920,7 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                                                     // Smart message display logic
                                                     message.text.isNotEmpty
                                                         ? message.text
-                                                        : (isTemporary
-                                                            ? 'Sending...'
-                                                            : ''), // Always empty for non-temp messages without text
+                                                        : '', // Always empty for messages without text
                                                     style: TextStyle(
                                                       color:
                                                           isCurrentUser
@@ -958,8 +936,7 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                                       ),
                                     ),
                                   ),
-                                ),
-                              );
+                                );
                             },
                           ),
 
@@ -1096,7 +1073,7 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                           borderRadius: BorderRadius.circular(30),
                           borderSide: BorderSide(
                             color:
-                                isReplyMode
+                                _replyingToMessage != null
                                     ? Colors.green
                                     : Colors.purple.withOpacity(0.5),
                             width: 1.5,
