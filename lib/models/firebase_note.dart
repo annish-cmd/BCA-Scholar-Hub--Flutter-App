@@ -15,6 +15,7 @@ class FirebaseNote {
   final String storageProvider;
   final int uploadedAt;
   final String uploadedBy;
+  final String? _semester; // Private field for direct semester value
 
   FirebaseNote({
     required this.id,
@@ -31,7 +32,8 @@ class FirebaseNote {
     required this.storageProvider,
     required this.uploadedAt,
     required this.uploadedBy,
-  });
+    String? semester,
+  }) : _semester = semester;
 
   factory FirebaseNote.fromMap(String id, Map<dynamic, dynamic> map) {
     return FirebaseNote(

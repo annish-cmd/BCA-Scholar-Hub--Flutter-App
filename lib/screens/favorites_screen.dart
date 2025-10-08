@@ -348,10 +348,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () {
+          // Try to find the corresponding Firebase note for better recommendations
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => PdfOptionsScreen(pdfNote: pdf),
+              builder: (context) => PdfOptionsScreen(
+                pdfNote: pdf,
+                firebaseNote: null, // Will be enhanced later to fetch from Firebase
+              ),
             ),
           );
         },

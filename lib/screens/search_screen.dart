@@ -8,6 +8,7 @@ import '../services/search_service.dart';
 import '../models/search_result.dart';
 import '../models/pdf_note.dart';
 import 'pdf_viewer_screen.dart';
+import 'pdf_details_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -538,15 +539,16 @@ class _SearchScreenState extends State<SearchScreen> {
                                 _showSuggestions = false;
                               });
 
-                              // Open PDF for the selected subject using Firebase note data
+                              // Navigate to PDF details screen first
                               if (result.firebaseNote != null) {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder:
-                                        (context) => PdfViewerScreen(
+                                        (context) => PdfDetailsScreen(
                                           pdfNote:
                                               result.firebaseNote!.toPdfNote(),
+                                          firebaseNote: result.firebaseNote,
                                         ),
                                   ),
                                 );
@@ -556,7 +558,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                   context,
                                   MaterialPageRoute(
                                     builder:
-                                        (context) => PdfViewerScreen(
+                                        (context) => PdfDetailsScreen(
                                           pdfNote: PdfNote.fromLegacy(
                                             title: result.subject,
                                             subject:
@@ -567,6 +569,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                             filename: 'test.pdf',
                                             thumbnailImage: 'c.jpg',
                                           ),
+                                          firebaseNote: null,
                                         ),
                                   ),
                                 );

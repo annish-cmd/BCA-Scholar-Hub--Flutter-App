@@ -102,11 +102,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 titleSpacing: 0,
                 actions: [
                   IconButton(
-                    icon: const Icon(Icons.search),
-                    tooltip: 'Search',
+                    icon: Icon(isDarkMode ? Icons.light_mode : Icons.dark_mode),
+                    tooltip: isDarkMode ? 'Light Mode' : 'Dark Mode',
                     onPressed: () {
-                      // Navigate directly to search screen (index 2)
-                      _handleIndexChanged(2);
+                      themeProvider.toggleTheme();
                     },
                   ),
                   Consumer<NotificationProvider>(
