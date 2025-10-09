@@ -1,21 +1,20 @@
-# BCA Library App
+# BCA Scholar Hub App
 
 A Flutter mobile application providing access to BCA (Bachelor of Computer Applications) study materials, courses, and a global chat feature for student communication.
 
 &nbsp;
 
-![a1](https://github.com/user-attachments/assets/161a9c5d-a486-43d1-83c5-13050764efc9)  &nbsp;
+![a1](https://github.com/user-attachments/assets/161a9c5d-a486-43d1-83c5-13050764efc9) &nbsp;
 
-![a2](https://github.com/user-attachments/assets/5c4d390d-99fd-44c5-82a3-21ce860edbd4)  &nbsp;
+![a2](ad.jpg) &nbsp;
 
-![a3](https://github.com/user-attachments/assets/e7454273-0f2a-47ad-8865-cf15b7d94793)   &nbsp;
+![a3](ad2.jpg) &nbsp;
 
-![a4](https://github.com/user-attachments/assets/a3ec6790-1a35-4f28-814e-715b31e516e2)  &nbsp;
+![a4](https://github.com/user-attachments/assets/a3ec6790-1a35-4f28-814e-715b31e516e2) &nbsp;
 
-![a5](https://github.com/user-attachments/assets/de5eb860-e62b-4507-b84b-43d07495b9a7)   &nbsp;
+![a5](https://github.com/user-attachments/assets/de5eb860-e62b-4507-b84b-43d07495b9a7) &nbsp;
 
-![a6](https://github.com/user-attachments/assets/d7ba9046-2ea9-46e4-b3b9-b549909e944a)  &nbsp;
-
+![a6](https://github.com/user-attachments/assets/d7ba9046-2ea9-46e4-b3b9-b549909e944a) &nbsp;
 
 ## Features
 
@@ -58,6 +57,7 @@ For more information on setting up and using the Global Chat feature, see the [G
 ## Firebase Configuration
 
 This application uses Firebase for:
+
 - User Authentication
 - Realtime Database (for Global Chat)
 - Storage (for course materials)
