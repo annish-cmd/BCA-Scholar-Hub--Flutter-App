@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme_provider.dart';
+import '../utils/app_localizations.dart';
 
 class PrivacyPolicyPage extends StatelessWidget {
   const PrivacyPolicyPage({super.key});
@@ -15,12 +16,13 @@ class PrivacyPolicyPage extends StatelessWidget {
         isDarkMode ? const Color(0xFF121212) : Colors.blue[50]!;
     final secondaryBackgroundColor =
         isDarkMode ? const Color(0xFF1A1A1A) : Colors.purple[50]!;
+    final localizations = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Privacy Policy',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        title: Text(
+          localizations.translate('pp_title'),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         flexibleSpace: Container(
           decoration: const BoxDecoration(
@@ -31,22 +33,6 @@ class PrivacyPolicyPage extends StatelessWidget {
             ),
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.file_download, color: Colors.white),
-            tooltip: 'Download as PDF',
-            onPressed: () {
-              _showDownloadDialog(context);
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.share, color: Colors.white),
-            tooltip: 'Share',
-            onPressed: () {
-              _showShareDialog(context);
-            },
-          ),
-        ],
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 2,
       ),
@@ -63,62 +49,62 @@ class PrivacyPolicyPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _SectionHeading(title: 'Privacy Policy', textColor: textColor),
+              _SectionHeading(title: localizations.translate('pp_title'), textColor: textColor),
               const SizedBox(height: 16),
-              _buildDateCard(context, isDarkMode, cardColor, textColor),
+              _buildDateCard(context, isDarkMode, cardColor, textColor, localizations),
               const SizedBox(height: 24),
               _buildSection(
                 context,
-                'Introduction',
-                'This Privacy Policy explains how BCA Scholar Hub collects, uses, and discloses your information when you use our application. By using our services, you agree to the collection and use of information in accordance with this policy.',
+                localizations.translate('pp_introduction_title'),
+                localizations.translate('pp_introduction_content'),
                 isDarkMode,
                 cardColor,
                 textColor,
               ),
               _buildSection(
                 context,
-                'Information Collection and Use',
-                'We collect several different types of information for various purposes to provide and improve our service to you. While using our app, we may ask you to provide us with certain personally identifiable information that can be used to contact or identify you.',
+                localizations.translate('pp_information_title'),
+                localizations.translate('pp_information_content'),
                 isDarkMode,
                 cardColor,
                 textColor,
               ),
               _buildSubSection(
                 context,
-                'Personal Data',
-                'We may collect personal information that you provide to us such as name, email address, and other contact details.',
+                localizations.translate('pp_personal_data_title'),
+                localizations.translate('pp_personal_data_content'),
                 isDarkMode,
                 cardColor,
                 textColor,
               ),
               _buildSubSection(
                 context,
-                'Usage Data',
-                'We may also collect information on how the app is accessed and used. This data may include information such as your device\'s IP address, browser type, pages visited, time spent on those pages, and other diagnostic data.',
+                localizations.translate('pp_usage_data_title'),
+                localizations.translate('pp_usage_data_content'),
                 isDarkMode,
                 cardColor,
                 textColor,
               ),
               _buildSection(
                 context,
-                'Data Security',
-                'The security of your data is important to us, but remember that no method of transmission over the Internet, or method of electronic storage is 100% secure. While we strive to use commercially acceptable means to protect your personal data, we cannot guarantee its absolute security.',
+                localizations.translate('pp_data_security_title'),
+                localizations.translate('pp_data_security_content'),
                 isDarkMode,
                 cardColor,
                 textColor,
               ),
               _buildSection(
                 context,
-                'Changes to This Privacy Policy',
-                'We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "effective date" at the top of this Privacy Policy.',
+                localizations.translate('pp_changes_title'),
+                localizations.translate('pp_changes_content'),
                 isDarkMode,
                 cardColor,
                 textColor,
               ),
               _buildSection(
                 context,
-                'Contact Us',
-                'If you have any questions about this Privacy Policy, please contact us at:\n\n• Email: contact@bcascholar.com\n• Website: www.bcascholar.com',
+                localizations.translate('pp_contact_title'),
+                localizations.translate('pp_contact_content'),
                 isDarkMode,
                 cardColor,
                 textColor,
@@ -130,166 +116,13 @@ class PrivacyPolicyPage extends StatelessWidget {
     );
   }
 
-  void _showDownloadDialog(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    final isDarkMode = themeProvider.isDarkMode;
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: isDarkMode ? const Color(0xFF1F1F1F) : Colors.white,
-          title: Text(
-            'Download Privacy Policy',
-            style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
-          ),
-          content: Text(
-            'Would you like to download the Privacy Policy as a PDF file?',
-            style: TextStyle(
-              color: isDarkMode ? Colors.white70 : Colors.black87,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Privacy Policy downloaded successfully'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              },
-              child: const Text('Download'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showShareDialog(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    final isDarkMode = themeProvider.isDarkMode;
-    final textColor = isDarkMode ? Colors.white : Colors.black;
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: isDarkMode ? const Color(0xFF1F1F1F) : Colors.white,
-          title: Text(
-            'Share Privacy Policy',
-            style: TextStyle(color: textColor),
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Choose how you would like to share:',
-                  style: TextStyle(color: textColor),
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    _buildShareOption(
-                      context,
-                      Icons.email,
-                      'Email',
-                      isDarkMode,
-                      textColor,
-                    ),
-                    _buildShareOption(
-                      context,
-                      Icons.messenger_outline,
-                      'Messenger',
-                      isDarkMode,
-                      textColor,
-                    ),
-                    _buildShareOption(
-                      context,
-                      Icons.copy,
-                      'Copy Link',
-                      isDarkMode,
-                      textColor,
-                    ),
-                    _buildShareOption(
-                      context,
-                      Icons.phone_android,
-                      'SMS',
-                      isDarkMode,
-                      textColor,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-          ],
-          actionsAlignment: MainAxisAlignment.center,
-          actionsPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 8,
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildShareOption(
-    BuildContext context,
-    IconData icon,
-    String label,
-    bool isDarkMode,
-    Color textColor,
-  ) {
-    return InkWell(
-      onTap: () {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Shared via $label'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircleAvatar(
-            radius: 25,
-            backgroundColor:
-                isDarkMode
-                    ? Colors.blue.withAlpha(50)
-                    : Colors.blue.withAlpha(30),
-            child: Icon(icon, color: Colors.blue),
-          ),
-          const SizedBox(height: 8),
-          Text(label, style: TextStyle(color: textColor)),
-        ],
-      ),
-    );
-  }
 
   Widget _buildDateCard(
     BuildContext context,
     bool isDarkMode,
     Color cardColor,
     Color textColor,
+    AppLocalizations localizations,
   ) {
     final secondaryTextColor = isDarkMode ? Colors.grey[400] : Colors.grey;
 
@@ -314,14 +147,14 @@ class PrivacyPolicyPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Effective Date',
+                  localizations.translate('pp_effective_date'),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                     color: textColor,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
                   'May 10, 2024',
                   style: TextStyle(color: secondaryTextColor),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme_provider.dart';
+import '../utils/app_localizations.dart';
 
 class TermsOfServicePage extends StatelessWidget {
   const TermsOfServicePage({super.key});
@@ -15,12 +16,13 @@ class TermsOfServicePage extends StatelessWidget {
         isDarkMode ? const Color(0xFF121212) : Colors.blue[50]!;
     final secondaryBackgroundColor =
         isDarkMode ? const Color(0xFF1A1A1A) : Colors.purple[50]!;
+    final localizations = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Terms of Service',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        title: Text(
+          localizations.translate('tos_title'),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         flexibleSpace: Container(
           decoration: const BoxDecoration(
@@ -47,70 +49,70 @@ class TermsOfServicePage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _SectionHeading(title: 'Terms of Service', textColor: textColor),
+              _SectionHeading(title: localizations.translate('tos_title'), textColor: textColor),
               const SizedBox(height: 16),
-              _buildDateCard(context, isDarkMode, cardColor, textColor),
+              _buildDateCard(context, isDarkMode, cardColor, textColor, localizations),
               const SizedBox(height: 24),
               _buildSection(
                 context,
-                'Agreement to Terms',
-                'By accessing or using the BCA Scholar Hub application, you agree to be bound by these Terms of Service and all applicable laws and regulations. If you do not agree with any of these terms, you are prohibited from using or accessing this app.',
+                localizations.translate('tos_agreement_title'),
+                localizations.translate('tos_agreement_content'),
                 isDarkMode,
                 cardColor,
                 textColor,
               ),
               _buildSection(
                 context,
-                'Use License',
-                'Permission is granted to temporarily use the application for personal, non-commercial purposes only. This is the grant of a license, not a transfer of title, and under this license you may not:\n\n• Modify or copy the materials\n• Use the materials for any commercial purpose\n• Attempt to decompile or reverse engineer any software contained in the app\n• Remove any copyright or other proprietary notations from the materials\n• Transfer the materials to another person or "mirror" the materials on any other server',
+                localizations.translate('tos_license_title'),
+                localizations.translate('tos_license_content'),
                 isDarkMode,
                 cardColor,
                 textColor,
               ),
               _buildSection(
                 context,
-                'User Accounts',
-                'Some features of the app may require you to register for an account. You are responsible for maintaining the confidentiality of your account and password and for restricting access to your device, and you agree to accept responsibility for all activities that occur under your account.',
+                localizations.translate('tos_accounts_title'),
+                localizations.translate('tos_accounts_content'),
                 isDarkMode,
                 cardColor,
                 textColor,
               ),
               _buildSection(
                 context,
-                'Content',
-                'Our app allows you to access educational materials, PDFs, and courses. All content provided on this app is for informational and educational purposes only. We make no warranties about the accuracy or reliability of such content.',
+                localizations.translate('tos_content_title'),
+                localizations.translate('tos_content_content'),
                 isDarkMode,
                 cardColor,
                 textColor,
               ),
               _buildSection(
                 context,
-                'Limitations',
-                'In no event shall BCA Scholar Hub or its suppliers be liable for any damages (including, without limitation, damages for loss of data or profit, or due to business interruption) arising out of the use or inability to use the materials on the app, even if BCA Scholar Hub or an authorized representative has been notified orally or in writing of the possibility of such damage.',
+                localizations.translate('tos_limitations_title'),
+                localizations.translate('tos_limitations_content'),
                 isDarkMode,
                 cardColor,
                 textColor,
               ),
               _buildSection(
                 context,
-                'Revisions and Errata',
-                'BCA Scholar Hub may revise these terms of service for its app at any time without notice. By using this app you are agreeing to be bound by the then current version of these terms of service.',
+                localizations.translate('tos_revisions_title'),
+                localizations.translate('tos_revisions_content'),
                 isDarkMode,
                 cardColor,
                 textColor,
               ),
               _buildSection(
                 context,
-                'Governing Law',
-                'These terms and conditions are governed by and construed in accordance with the laws and you irrevocably submit to the exclusive jurisdiction of the courts in that location.',
+                localizations.translate('tos_governing_title'),
+                localizations.translate('tos_governing_content'),
                 isDarkMode,
                 cardColor,
                 textColor,
               ),
               _buildSection(
                 context,
-                'Contact Information',
-                'If you have any questions about these Terms of Service, please contact us at:\n\n• Email: terms@anishlibrary.com\n• Website: www.anishlibrary.com',
+                localizations.translate('tos_contact_title'),
+                localizations.translate('tos_contact_content'),
                 isDarkMode,
                 cardColor,
                 textColor,
@@ -127,6 +129,7 @@ class TermsOfServicePage extends StatelessWidget {
     bool isDarkMode,
     Color cardColor,
     Color textColor,
+    AppLocalizations localizations,
   ) {
     final secondaryTextColor = isDarkMode ? Colors.grey[400] : Colors.grey;
 
@@ -151,14 +154,14 @@ class TermsOfServicePage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Last Updated',
+                  localizations.translate('pp_last_updated'),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                     color: textColor,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
                   'May 10, 2024',
                   style: TextStyle(color: secondaryTextColor),

@@ -14,6 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:logger/logger.dart';
 import '../widgets/thumbnail_image.dart';
 import 'package:http/http.dart' as http;
+import 'package:permission_handler/permission_handler.dart';
 
 // Add a logger instance at the top of the file
 final Logger logger = Logger();
@@ -1041,6 +1042,37 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
     }
   }
 
+  // Request storage permissions for download
+  Future<bool> _requestStoragePermissions() async {
+    try {
+      if (Platform.isAndroid) {
+        // Try storage permission first
+        var status = await Permission.storage.status;
+        
+        if (!status.isGranted) {
+          status = await Permission.storage.request();
+        }
+        
+        // For Android 11+ (API 30+), also try MANAGE_EXTERNAL_STORAGE
+        if (!status.isGranted) {
+          final manageStatus = await Permission.manageExternalStorage.status;
+          if (!manageStatus.isGranted) {
+            final manageResult = await Permission.manageExternalStorage.request();
+            return manageResult.isGranted;
+          }
+          return manageStatus.isGranted;
+        }
+        
+        return status.isGranted;
+      }
+      return true; // iOS doesn't need explicit storage permissions for this use case
+    } catch (e) {
+      logger.d('Permission request error: $e');
+      // If permission handling fails, try without permissions (fallback)
+      return true;
+    }
+  }
+
   // Download button functionality
   Future<void> _downloadPdf() async {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
@@ -1161,10 +1193,135 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
       return; // User canceled the download
     }
 
+    // After confirmation, request storage permissions first
+    bool hasPermission = await _requestStoragePermissions();
+    if (!hasPermission) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Storage permission is required to download PDFs'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     // Actual download implementation
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Download started...')));
+    try {
+      String? pdfUrl;
+      
+      // Get the URL from Firebase note or from PdfNote
+      if (widget.firebaseNote != null && widget.firebaseNote!.documentUrl.isNotEmpty) {
+        pdfUrl = widget.firebaseNote!.documentUrl;
+      } else if (widget.pdfNote.filename.startsWith('http')) {
+        pdfUrl = widget.pdfNote.filename;
+      }
+      
+      // Use Downloads directory which is easily accessible to users
+      String bcaFolderPath = '/storage/emulated/0/Download/BCA Scholar Hub';
+      
+      // Try alternative Downloads path if primary doesn't work
+      try {
+        final directory = await getExternalStorageDirectory();
+        if (directory != null) {
+          // Try to find Downloads directory from external storage path
+          final pathParts = directory.path.split('/');
+          final zeroIndex = pathParts.indexWhere((part) => part == '0');
+          if (zeroIndex != -1) {
+            bcaFolderPath = '/${pathParts.sublist(1, zeroIndex + 1).join('/')}/Download/BCA Scholar Hub';
+          }
+        }
+      } catch (e) {
+        logger.d('Downloads path construction error: $e');
+      }
+
+      if (pdfUrl != null) {
+        // Try to download from URL to BCA Scholar Hub folder
+        try {
+          final response = await http.get(Uri.parse(pdfUrl));
+          
+          if (response.statusCode == 200) {
+            // Create BCA Scholar Hub directory in Downloads
+            final bcaDirectory = Directory(bcaFolderPath);
+            if (!await bcaDirectory.exists()) {
+              await bcaDirectory.create(recursive: true);
+            }
+            
+            final fileName = widget.pdfNote.title.replaceAll(RegExp(r'[^\w\s-]'), '').trim();
+            final filePath = '$bcaFolderPath/${fileName}.pdf';
+            
+            final file = File(filePath);
+            await file.writeAsBytes(response.bodyBytes);
+            
+            if (!mounted) return;
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('PDF saved to Downloads/BCA Scholar Hub\n📁 $bcaFolderPath'),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+            return;
+          }
+        } catch (e) {
+          logger.d('Download error: $e');
+        }
+      } else {
+        // If no URL available, try to save the asset file
+        try {
+          final String assetPath = 'assets/pdfs/${widget.pdfNote.filename}';
+          final ByteData bytes = await rootBundle.load(assetPath);
+          
+          // Create BCA Scholar Hub directory in Downloads
+          final bcaDirectory = Directory(bcaFolderPath);
+          if (!await bcaDirectory.exists()) {
+            await bcaDirectory.create(recursive: true);
+          }
+          
+          final fileName = widget.pdfNote.title.replaceAll(RegExp(r'[^\w\s-]'), '').trim();
+          final filePath = '$bcaFolderPath/${fileName}.pdf';
+          final file = File(filePath);
+          await file.writeAsBytes(bytes.buffer.asUint8List(), flush: true);
+          
+          if (!mounted) return;
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('PDF saved to Downloads/BCA Scholar Hub\n📁 $bcaFolderPath'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          return;
+        } catch (e) {
+          logger.d('Asset download error: $e');
+        }
+      }
+      
+      // If we reach here, show error
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not download PDF. Please try again later.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      logger.d('Download function error: $e');
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error downloading PDF. Please try again.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
   }
 }
