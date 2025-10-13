@@ -27,12 +27,15 @@ A Flutter mobile application providing access to BCA (Bachelor of Computer Appli
 - **Dark Mode**: Toggle between light and dark themes for comfortable reading
 - **Multi-language Support**: Access content in different languages
 
-## Algorithms:
+## ⚙️ Algorithms Used
 
-- **Collaborative Filtering**: Personalized recommendations based on user behavior
-- **Content-based Filtering**: Recommendations based on content similarity
-- **Hybrid Filtering**: Combines collaborative and content-based filtering for better accuracy
-- **LRU Caching**:Stores recently opened PDFs in temporary storage (cache) so they remain viewable even without internet. Keeps up to 10 files or 500 MB, automatically replacing the oldest file when the limit is reached.
+🔗 Collaborative Filtering — Provides personalized recommendations based on user behavior and preferences.
+
+🧩 Content-based Filtering — Suggests materials by analyzing content similarity such as topics or categories.
+
+⚡ Hybrid Filtering — Combines collaborative and content-based approaches to achieve higher recommendation accuracy.
+
+💾 LRU Caching — Stores recently opened PDFs in temporary storage (cache) so they remain viewable even without internet. Keeps up to 10 files or 500 MB, automatically replacing the oldest file when the limit is reached.
 
 
 ## Global Chat Feature
