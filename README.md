@@ -32,6 +32,7 @@ A Flutter mobile application providing access to BCA (Bachelor of Computer Appli
 - **Collaborative Filtering**: Personalized recommendations based on user behavior
 - **Content-based Filtering**: Recommendations based on content similarity
 - **Hybrid Filtering**: Combines collaborative and content-based filtering for better accuracy
+- **LRU Caching**: It’s a smart way to store data temporarily (called cache).
 
 
 ## Global Chat Feature
