@@ -8,10 +8,6 @@ A Flutter mobile application providing access to BCA (Bachelor of Computer Appli
 
 ![ad](https://github.com/user-attachments/assets/79ac64e8-e7c5-424b-9f1e-f8ad4b945165)&nbsp;
 
-
-![ad](https://github.com/user-attachments/assets/79ac64e8-e7c5-424b-9f1e-f8ad4b945165)&nbsp;
-
-
 ![ad2](https://github.com/user-attachments/assets/acd46319-4ea8-49f3-b9a3-0e8f72baef74)&nbsp;
 
 ![a4](https://github.com/user-attachments/assets/a3ec6790-1a35-4f28-814e-715b31e516e2) &nbsp;
@@ -30,6 +26,13 @@ A Flutter mobile application providing access to BCA (Bachelor of Computer Appli
 - **Global Chat**: Communicate with other students in real-time (NEW!)
 - **Dark Mode**: Toggle between light and dark themes for comfortable reading
 - **Multi-language Support**: Access content in different languages
+
+## Algorithms:
+
+- **Collaborative Filtering**: Personalized recommendations based on user behavior
+- **Content-based Filtering**: Recommendations based on content similarity
+- **Hybrid Filtering**: Combines collaborative and content-based filtering for better accuracy
+
 
 ## Global Chat Feature
 
