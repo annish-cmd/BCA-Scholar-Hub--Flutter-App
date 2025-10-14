@@ -5,8 +5,9 @@ import '../utils/app_localizations.dart';
 import '../utils/favorites_provider.dart';
 import '../utils/auth_provider.dart';
 import '../models/pdf_note.dart';
+import '../models/firebase_note.dart';
+import '../services/database_service.dart';
 import 'pdf_options_screen.dart';
-import 'home_content_screen.dart';
 import '../main.dart'; 
 import 'auth/login_screen.dart';
 import '../widgets/thumbnail_image.dart';
@@ -23,6 +24,7 @@ class FavoritesScreen extends StatefulWidget {
 class _FavoritesScreenState extends State<FavoritesScreen> {
   List<PdfNote> _allNotes = [];
   final FavoritesCacheManager _cacheManager = FavoritesCacheManager();
+  final DatabaseService _databaseService = DatabaseService();
 
   @override
   void initState() {
@@ -347,17 +349,55 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       color: isDarkMode ? const Color(0xFF262626) : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
-        onTap: () {
-          // Try to find the corresponding Firebase note for better recommendations
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PdfOptionsScreen(
-                pdfNote: pdf,
-                firebaseNote: null, // Will be enhanced later to fetch from Firebase
+        onTap: () async {
+          // Fetch the corresponding Firebase note for better recommendations
+          FirebaseNote? firebaseNote;
+          try {
+            // Get all notes by combining semester notes and extra course notes
+            List<FirebaseNote> allFirebaseNotes = [];
+            
+            // Get notes from all semesters (1st to 8th)
+            for (int semester = 1; semester <= 8; semester++) {
+              String semesterStr = '${semester}st';
+              if (semester == 2) semesterStr = '2nd';
+              else if (semester == 3) semesterStr = '3rd';
+              else if (semester > 3) semesterStr = '${semester}th';
+              
+              final semesterNotes = await _databaseService.getSemesterNotes(semesterStr);
+              allFirebaseNotes.addAll(semesterNotes);
+            }
+            
+            // Also get extra course notes
+            final extraNotes = await _databaseService.getExtraCourseNotes();
+            allFirebaseNotes.addAll(extraNotes);
+            
+            // Try to find the Firebase note by matching title and category
+            firebaseNote = allFirebaseNotes.firstWhere(
+              (note) => note.title == pdf.title && note.category == pdf.subject,
+              orElse: () => allFirebaseNotes.firstWhere(
+                (note) => note.title == pdf.title,
+                orElse: () => allFirebaseNotes.firstWhere(
+                  (note) => note.category == pdf.subject,
+                  orElse: () => allFirebaseNotes.isNotEmpty ? allFirebaseNotes.first : throw StateError('No notes found'),
+                ),
               ),
-            ),
-          );
+            );
+          } catch (e) {
+            print('Could not find matching Firebase note: $e');
+            firebaseNote = null;
+          }
+          
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PdfOptionsScreen(
+                  pdfNote: pdf,
+                  firebaseNote: firebaseNote,
+                ),
+              ),
+            );
+          }
         },
         borderRadius: BorderRadius.circular(12),
         child: Row(

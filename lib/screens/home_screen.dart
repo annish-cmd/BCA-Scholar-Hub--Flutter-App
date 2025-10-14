@@ -6,8 +6,11 @@ import '../utils/app_localizations.dart';
 import '../utils/url_launcher_utils.dart';
 import '../utils/notification_provider.dart';
 import '../widgets/search_app_bar.dart';
+import '../services/notice_service.dart';
 import 'global_chat_screen.dart';
 import 'notification_page.dart';
+import 'notice_list_screen.dart';
+import 'add_notice_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final int currentIndex;
@@ -274,19 +277,32 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             ListTile(
-              title: Text('Facebook Page', style: textStyle),
-              leading: Icon(Icons.facebook, color: Colors.white),
+              title: Text('Notices', style: textStyle),
+              leading: Icon(Icons.campaign, color: Colors.white),
               onTap: () {
-                // Close the drawer first
                 Navigator.pop(context);
-                // Open Facebook page inside the app
-                UrlLauncherUtils.launchInAppWebView(
+                Navigator.push(
                   context,
-                  'https://www.facebook.com/ItsMeAnnesh/',
-                  'Facebook Page',
+                  MaterialPageRoute(
+                    builder: (context) => const NoticeListScreen(),
+                  ),
                 );
               },
             ),
+            if (NoticeService.isUserAdmin())
+              ListTile(
+                title: Text('Add Notice', style: textStyle),
+                leading: Icon(Icons.add_circle, color: Colors.white),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddNoticeScreen(),
+                    ),
+                  );
+                },
+              ),
             ListTile(
               title: Text('Extra Courses', style: textStyle),
               leading: Icon(Icons.star, color: Colors.white),

@@ -15,15 +15,17 @@ class ChatService extends ChangeNotifier {
   bool _isLoadingMessages = false;
   bool _isAdmin = false;
   bool _isEncryptionInitialized = false;
-  
+
   // Decryption cache to prevent re-decryption of already processed messages
-  final Map<String, ChatMessage> _decryptedMessageCache = {}; // messageId -> decrypted message
-  final Map<String, String> _decryptionTextCache = {}; // messageId -> decryptedText
-  
+  final Map<String, ChatMessage> _decryptedMessageCache =
+      {}; // messageId -> decrypted message
+  final Map<String, String> _decryptionTextCache =
+      {}; // messageId -> decryptedText
+
   // Optimization: Reduce unnecessary notifications
   DateTime? _lastNotifyTime;
   bool _hasNotificationScheduled = false;
-  
+
   // Stream controller for reactive message updates
   StreamController<List<ChatMessage>>? _messagesStreamController;
   StreamSubscription? _firebaseStreamSubscription;
@@ -32,14 +34,14 @@ class ChatService extends ChangeNotifier {
   ChatService() {
     _database.databaseURL =
         'https://bcalibraryapp-default-rtdb.asia-southeast1.firebasedatabase.app/';
-    
+
     // Optimize Firebase for real-time performance
     _database.setPersistenceEnabled(true);
     _database.setPersistenceCacheSizeBytes(10000000); // 10MB cache
-    
+
     // Initialize encryption immediately and aggressively
     _initializeEverythingImmediately();
-    
+
     // Set up auth state listener to reload messages when user logs in
     _auth.authStateChanges().listen((user) {
       if (user != null) {
@@ -48,22 +50,19 @@ class ChatService extends ChangeNotifier {
       }
     });
   }
-  
+
   // Initialize everything immediately for fastest startup
   void _initializeEverythingImmediately() async {
     // Initialize admin status and messages in parallel
-    final futures = <Future>[
-      _checkAdminStatus(),
-      _eagerlyLoadMessages(),
-    ];
-    
+    final futures = <Future>[_checkAdminStatus(), _eagerlyLoadMessages()];
+
     await Future.wait(futures).catchError((error) {
       _logger.w('Initialization error (continuing anyway): $error');
     });
-    
+
     // Initialize encryption after messages are loaded
     await _checkEncryptionStatus();
-    
+
     // Force immediate notification
     _immediateNotify();
   }
@@ -80,7 +79,7 @@ class ChatService extends ChangeNotifier {
 
       final adminRef = _database.ref('admins').child(user.uid);
       final snapshot = await adminRef.get();
-      
+
       _isAdmin = snapshot.exists;
       _logger.i('Admin status for ${user.email}: $_isAdmin');
       notifyListeners();
@@ -101,37 +100,38 @@ class ChatService extends ChangeNotifier {
       _isEncryptionInitialized = true;
       _logger.i('Encryption initialized successfully');
       notifyListeners();
-      
+
       // Force decrypt all cached messages immediately after encryption is ready
       await _forceDecryptAllMessages();
     } catch (e) {
       _logger.e('Error initializing encryption: $e');
       _isEncryptionInitialized = false;
       notifyListeners();
-      
+
       // Retry encryption initialization after a short delay
       Future.delayed(const Duration(milliseconds: 500), () {
         _checkEncryptionStatus();
       });
     }
   }
-  
+
   // Force decrypt all messages in cache and current view
   Future<void> _forceDecryptAllMessages() async {
     _logger.i('Force decrypting all messages...');
-    
+
     // Decrypt cached messages
     if (_cachedMessages.isNotEmpty) {
       for (final message in _cachedMessages) {
-        if (message.isEncrypted && !_decryptedMessageCache.containsKey(message.id)) {
+        if (message.isEncrypted &&
+            !_decryptedMessageCache.containsKey(message.id)) {
           await _forceDecryptMessage(message);
         }
       }
     }
-    
+
     // Force stream refresh to show all decrypted messages
     _refreshMessageStream();
-    
+
     // Force a refresh to update the UI
     _immediateNotify();
   }
@@ -200,22 +200,24 @@ class ChatService extends ChangeNotifier {
         _logger.w('Index out of range while decrypting cached messages: $i');
         break;
       }
-      
+
       final message = _cachedMessages[i];
       final messageId = message.id;
-      
+
       // Skip if already cached
       if (_decryptedMessageCache.containsKey(messageId)) {
         _cachedMessages[i] = _decryptedMessageCache[messageId]!;
         continue;
       }
-      
+
       if (message.isEncrypted) {
         try {
           final decryptedText = await decryptMessage(message);
-          
+
           // Check again if index is still valid before updating
-          if (i < _cachedMessages.length && decryptedText != null && decryptedText.isNotEmpty) {
+          if (i < _cachedMessages.length &&
+              decryptedText != null &&
+              decryptedText.isNotEmpty) {
             final decryptedMessage = ChatMessage(
               id: message.id,
               userId: message.userId,
@@ -232,7 +234,7 @@ class ChatService extends ChangeNotifier {
               encryptedKeys: message.encryptedKeys,
               isAdmin: message.isAdmin,
             );
-            
+
             // Cache the decrypted message
             _decryptedMessageCache[messageId] = decryptedMessage;
             _decryptionTextCache[messageId] = decryptedText;
@@ -282,20 +284,25 @@ class ChatService extends ChangeNotifier {
       // Handle reply information
       if (replyToId != null) {
         messageData['replyToId'] = replyToId;
-        
+
         // Find the original message to get reply information
         try {
           final originalMessageSnapshot = await _chatRef.child(replyToId).get();
           if (originalMessageSnapshot.exists) {
-            final originalData = originalMessageSnapshot.value as Map<dynamic, dynamic>;
-            messageData['replyToUserName'] = originalData['userName'] ?? 'Unknown';
-            
+            final originalData =
+                originalMessageSnapshot.value as Map<dynamic, dynamic>;
+            messageData['replyToUserName'] =
+                originalData['userName'] ?? 'Unknown';
+
             // Get the original message text (decrypt if needed)
             String originalText = originalData['text'] ?? '';
             if (originalData['isEncrypted'] == true && originalText.isEmpty) {
               // Try to decrypt for reply display
               try {
-                final originalMessage = ChatMessage.fromMap(replyToId, originalData);
+                final originalMessage = ChatMessage.fromMap(
+                  replyToId,
+                  originalData,
+                );
                 final decryptedText = await decryptMessage(originalMessage);
                 originalText = decryptedText ?? 'Encrypted message';
               } catch (e) {
@@ -303,8 +310,10 @@ class ChatService extends ChangeNotifier {
               }
             }
             messageData['replyToText'] = originalText;
-            
-            _logger.i('Reply information added: ${messageData['replyToUserName']}, text: ${originalText.length > 50 ? '${originalText.substring(0, 50)}...' : originalText}');
+
+            _logger.i(
+              'Reply information added: ${messageData['replyToUserName']}, text: ${originalText.length > 50 ? '${originalText.substring(0, 50)}...' : originalText}',
+            );
           }
         } catch (e) {
           _logger.w('Failed to get original message for reply: $e');
@@ -362,151 +371,165 @@ class ChatService extends ChangeNotifier {
   // Get a stream of messages with ultra-fast real-time updates
   Stream<List<ChatMessage>> getMessagesStream() {
     // Create a broadcast stream controller if not exists
-    _messagesStreamController ??= StreamController<List<ChatMessage>>.broadcast();
-    
+    _messagesStreamController ??=
+        StreamController<List<ChatMessage>>.broadcast();
+
     // Cancel existing subscription
     _firebaseStreamSubscription?.cancel();
-    
+
     // Listen to Firebase and emit processed messages
-    _firebaseStreamSubscription = _chatRef.orderByChild('timestamp').limitToLast(100).onValue.listen((event) async {
-      final data = event.snapshot.value;
-      if (data == null) {
-        if (!_messagesStreamController!.isClosed) {
-          _messagesStreamController!.add([]);
-        }
-        return;
-      }
-
-      final messagesMap = data as Map<dynamic, dynamic>;
-      final List<ChatMessage> messages = [];
-
-      messagesMap.forEach((key, value) {
-        try {
-          final message = ChatMessage.fromMap(key.toString(), value);
-          final messageId = message.id;
-
-          // Check if we have a cached decrypted version of this message
-          if (_decryptedMessageCache.containsKey(messageId)) {
-            // Use cached decrypted message - no flickering!
-            messages.add(_decryptedMessageCache[messageId]!);
-            return; // Skip further processing for this message
-          }
-
-          // For encrypted messages, check if we have decrypted text cached
-          if (message.isEncrypted && _decryptionTextCache.containsKey(messageId)) {
-            final cachedDecryptedText = _decryptionTextCache[messageId]!;
-            final decryptedMessage = ChatMessage(
-              id: message.id,
-              userId: message.userId,
-              userName: message.userName,
-              text: cachedDecryptedText,
-              timestamp: message.timestamp,
-              userPhotoUrl: message.userPhotoUrl,
-              replyToId: message.replyToId,
-              replyToUserName: message.replyToUserName,
-              replyToText: message.replyToText,
-              isEncrypted: message.isEncrypted,
-              cipherText: message.cipherText,
-              iv: message.iv,
-              encryptedKeys: message.encryptedKeys,
-              isAdmin: message.isAdmin,
-            );
-            
-            // Cache the full decrypted message and add to list
-            _decryptedMessageCache[messageId] = decryptedMessage;
-            messages.add(decryptedMessage);
+    _firebaseStreamSubscription = _chatRef
+        .orderByChild('timestamp')
+        .limitToLast(100)
+        .onValue
+        .listen((event) async {
+          final data = event.snapshot.value;
+          if (data == null) {
+            if (!_messagesStreamController!.isClosed) {
+              _messagesStreamController!.add([]);
+            }
             return;
           }
 
-          // For encrypted messages without cached decryption, decrypt immediately
-          if (message.isEncrypted && !_decryptionTextCache.containsKey(messageId)) {
-            // Add placeholder while decrypting
-            messages.add(message);
-            
-            // Force immediate decryption
-            () async {
-              await _forceDecryptMessage(message);
-              // Re-emit the stream with decrypted content
-              _immediateNotify();
-            }();
-          } else if (!message.isEncrypted) {
-            // Add non-encrypted message directly
-            messages.add(message);
-            _decryptedMessageCache[messageId] = message;
-          } else {
-            // Add the message as-is (already processed)
-            messages.add(message);
-          }
-        } catch (e) {
-          _logger.e('Error parsing message: $e');
-          // Don't propagate parsing errors to the UI
-        }
-      });
+          final messagesMap = data as Map<dynamic, dynamic>;
+          final List<ChatMessage> messages = [];
 
-      messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-      
-      // Emit the messages to the stream
-      if (!_messagesStreamController!.isClosed) {
-        _messagesStreamController!.add(messages);
-      }
-    });
-    
+          messagesMap.forEach((key, value) {
+            try {
+              final message = ChatMessage.fromMap(key.toString(), value);
+              final messageId = message.id;
+
+              // Check if we have a cached decrypted version of this message
+              if (_decryptedMessageCache.containsKey(messageId)) {
+                // Use cached decrypted message - no flickering!
+                messages.add(_decryptedMessageCache[messageId]!);
+                return; // Skip further processing for this message
+              }
+
+              // For encrypted messages, check if we have decrypted text cached
+              if (message.isEncrypted &&
+                  _decryptionTextCache.containsKey(messageId)) {
+                final cachedDecryptedText = _decryptionTextCache[messageId]!;
+                final decryptedMessage = ChatMessage(
+                  id: message.id,
+                  userId: message.userId,
+                  userName: message.userName,
+                  text: cachedDecryptedText,
+                  timestamp: message.timestamp,
+                  userPhotoUrl: message.userPhotoUrl,
+                  replyToId: message.replyToId,
+                  replyToUserName: message.replyToUserName,
+                  replyToText: message.replyToText,
+                  isEncrypted: message.isEncrypted,
+                  cipherText: message.cipherText,
+                  iv: message.iv,
+                  encryptedKeys: message.encryptedKeys,
+                  isAdmin: message.isAdmin,
+                );
+
+                // Cache the full decrypted message and add to list
+                _decryptedMessageCache[messageId] = decryptedMessage;
+                messages.add(decryptedMessage);
+                return;
+              }
+
+              // For encrypted messages without cached decryption, decrypt immediately
+              if (message.isEncrypted &&
+                  !_decryptionTextCache.containsKey(messageId)) {
+                // Add placeholder while decrypting
+                messages.add(message);
+
+                // Force immediate decryption
+                () async {
+                  await _forceDecryptMessage(message);
+                  // Re-emit the stream with decrypted content
+                  _immediateNotify();
+                }();
+              } else if (!message.isEncrypted) {
+                // Add non-encrypted message directly
+                messages.add(message);
+                _decryptedMessageCache[messageId] = message;
+              } else {
+                // Add the message as-is (already processed)
+                messages.add(message);
+              }
+            } catch (e) {
+              _logger.e('Error parsing message: $e');
+              // Don't propagate parsing errors to the UI
+            }
+          });
+
+          messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+          // Emit the messages to the stream
+          if (!_messagesStreamController!.isClosed) {
+            _messagesStreamController!.add(messages);
+          }
+        });
+
     return _messagesStreamController!.stream;
   }
-  
+
   // Force refresh the message stream with latest decrypted content
   void _refreshMessageStream() {
-    _chatRef.orderByChild('timestamp').limitToLast(100).once().then((snapshot) {
-      final data = snapshot.snapshot.value;
-      if (data == null) return;
-      
-      final messagesMap = data as Map<dynamic, dynamic>;
-      final List<ChatMessage> messages = [];
-      
-      messagesMap.forEach((key, value) {
-        try {
-          final message = ChatMessage.fromMap(key.toString(), value);
-          final messageId = message.id;
-          
-          // Use decrypted version if available
-          if (_decryptedMessageCache.containsKey(messageId)) {
-            messages.add(_decryptedMessageCache[messageId]!);
-          } else if (message.isEncrypted && _decryptionTextCache.containsKey(messageId)) {
-            final cachedText = _decryptionTextCache[messageId]!;
-            final decryptedMessage = ChatMessage(
-              id: message.id,
-              userId: message.userId,
-              userName: message.userName,
-              text: cachedText,
-              timestamp: message.timestamp,
-              userPhotoUrl: message.userPhotoUrl,
-              replyToId: message.replyToId,
-              replyToUserName: message.replyToUserName,
-              replyToText: message.replyToText,
-              isEncrypted: message.isEncrypted,
-              cipherText: message.cipherText,
-              iv: message.iv,
-              encryptedKeys: message.encryptedKeys,
-              isAdmin: message.isAdmin,
-            );
-            _decryptedMessageCache[messageId] = decryptedMessage;
-            messages.add(decryptedMessage);
-          } else {
-            messages.add(message);
+    _chatRef
+        .orderByChild('timestamp')
+        .limitToLast(100)
+        .once()
+        .then((snapshot) {
+          final data = snapshot.snapshot.value;
+          if (data == null) return;
+
+          final messagesMap = data as Map<dynamic, dynamic>;
+          final List<ChatMessage> messages = [];
+
+          messagesMap.forEach((key, value) {
+            try {
+              final message = ChatMessage.fromMap(key.toString(), value);
+              final messageId = message.id;
+
+              // Use decrypted version if available
+              if (_decryptedMessageCache.containsKey(messageId)) {
+                messages.add(_decryptedMessageCache[messageId]!);
+              } else if (message.isEncrypted &&
+                  _decryptionTextCache.containsKey(messageId)) {
+                final cachedText = _decryptionTextCache[messageId]!;
+                final decryptedMessage = ChatMessage(
+                  id: message.id,
+                  userId: message.userId,
+                  userName: message.userName,
+                  text: cachedText,
+                  timestamp: message.timestamp,
+                  userPhotoUrl: message.userPhotoUrl,
+                  replyToId: message.replyToId,
+                  replyToUserName: message.replyToUserName,
+                  replyToText: message.replyToText,
+                  isEncrypted: message.isEncrypted,
+                  cipherText: message.cipherText,
+                  iv: message.iv,
+                  encryptedKeys: message.encryptedKeys,
+                  isAdmin: message.isAdmin,
+                );
+                _decryptedMessageCache[messageId] = decryptedMessage;
+                messages.add(decryptedMessage);
+              } else {
+                messages.add(message);
+              }
+            } catch (e) {
+              _logger.e('Error parsing message in refresh: $e');
+            }
+          });
+
+          messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+          if (_messagesStreamController != null &&
+              !_messagesStreamController!.isClosed) {
+            _messagesStreamController!.add(messages);
           }
-        } catch (e) {
-          _logger.e('Error parsing message in refresh: $e');
-        }
-      });
-      
-      messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-      
-      if (_messagesStreamController != null && !_messagesStreamController!.isClosed) {
-        _messagesStreamController!.add(messages);
-      }
-    }).catchError((error) {
-      _logger.e('Error refreshing message stream: $error');
-    });
+        })
+        .catchError((error) {
+          _logger.e('Error refreshing message stream: $error');
+        });
   }
 
   // Force decrypt message even if encryption not initialized
@@ -516,12 +539,12 @@ class ChatService extends ChangeNotifier {
       if (!_isEncryptionInitialized) {
         await _checkEncryptionStatus();
       }
-      
+
       final decryptedText = await decryptMessage(message);
       if (decryptedText != null && decryptedText.isNotEmpty) {
         // Cache both the decrypted text and full message
         _decryptionTextCache[message.id] = decryptedText;
-        
+
         _updateMessageCacheAndNotify(message, decryptedText);
       }
     } catch (error) {
@@ -532,7 +555,7 @@ class ChatService extends ChangeNotifier {
       _immediateNotify();
     }
   }
-  
+
   // Update cache and notify immediately
   void _updateMessageCacheAndNotify(ChatMessage message, String decryptedText) {
     final decryptedMessage = ChatMessage(
@@ -551,16 +574,16 @@ class ChatService extends ChangeNotifier {
       encryptedKeys: message.encryptedKeys,
       isAdmin: message.isAdmin,
     );
-    
+
     _decryptedMessageCache[message.id] = decryptedMessage;
-    
+
     // Force stream refresh to show decrypted message immediately
     _refreshMessageStream();
-    
+
     // Force immediate UI update for real-time decryption
     _immediateNotify();
   }
-  
+
   // Immediate decryption for real-time message updates
   Future<void> _decryptMessageImmediately(ChatMessage message) async {
     try {
@@ -568,7 +591,7 @@ class ChatService extends ChangeNotifier {
       if (decryptedText != null && decryptedText.isNotEmpty) {
         // Cache both the decrypted text and full message
         _decryptionTextCache[message.id] = decryptedText;
-        
+
         final decryptedMessage = ChatMessage(
           id: message.id,
           userId: message.userId,
@@ -585,7 +608,7 @@ class ChatService extends ChangeNotifier {
           encryptedKeys: message.encryptedKeys,
           isAdmin: message.isAdmin,
         );
-        
+
         _decryptedMessageCache[message.id] = decryptedMessage;
         // Force immediate UI update for real-time decryption
         _immediateNotify();
@@ -598,7 +621,7 @@ class ChatService extends ChangeNotifier {
       _immediateNotify();
     }
   }
-  
+
   // Keep background decryption for compatibility
   Future<void> _decryptMessageBackground(ChatMessage message) async {
     await _decryptMessageImmediately(message);
@@ -732,13 +755,13 @@ class ChatService extends ChangeNotifier {
       _logger.i('Forcing message refresh - preserving decryption cache');
       // Make a safe copy of the current messages in case reload fails
       final previousMessages = List<ChatMessage>.from(_cachedMessages);
-      
+
       // Clear only cached messages, NOT decryption caches
       _cachedMessages = [];
       // DO NOT clear decryption caches to prevent re-encryption
       // _decryptedMessageCache.clear(); // Keep this!
       // _decryptionTextCache.clear();   // Keep this!
-      
+
       // Reload messages with error handling
       try {
         await _eagerlyLoadMessages();
@@ -747,10 +770,10 @@ class ChatService extends ChangeNotifier {
         _logger.e('Error loading fresh messages: $loadError');
         _cachedMessages = previousMessages;
       }
-      
+
       // Force stream refresh to use cached decryptions
       _refreshMessageStream();
-      
+
       notifyListeners();
     } catch (e) {
       _logger.e('Error refreshing messages: $e');
@@ -763,7 +786,7 @@ class ChatService extends ChangeNotifier {
     _decryptionTextCache.clear();
     _logger.i('Decryption cache cleared');
   }
-  
+
   // Force clear cache and refresh (only for debugging/reset)
   Future<void> forceFullRefresh() async {
     _logger.i('Force full refresh - clearing ALL caches');
@@ -781,14 +804,13 @@ class ChatService extends ChangeNotifier {
     if (user == null) return false;
     return message.userId == user.uid;
   }
-  
+
   // Ultra-fast notification for real-time performance
   void _throttledNotify() {
     final now = DateTime.now();
     // Minimal throttling for instant updates
-    if (_lastNotifyTime != null && 
+    if (_lastNotifyTime != null &&
         now.difference(_lastNotifyTime!) < const Duration(milliseconds: 10)) {
-      
       if (!_hasNotificationScheduled) {
         _hasNotificationScheduled = true;
         // Minimal delay for batching
@@ -802,17 +824,17 @@ class ChatService extends ChangeNotifier {
       }
       return;
     }
-    
+
     _lastNotifyTime = now;
     notifyListeners();
   }
-  
+
   // Immediate notification for critical updates (new messages)
   void _immediateNotify() {
     _lastNotifyTime = DateTime.now();
     notifyListeners();
   }
-  
+
   // Clean up resources
   @override
   void dispose() {

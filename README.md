@@ -29,9 +29,9 @@ A Flutter mobile application providing access to BCA (Bachelor of Computer Appli
 
 ## ⚙️ Algorithms Used
 
-🔗 Collaborative Filtering — Provides personalized recommendations based on user behavior and preferences.
+🔗 Trie-Based Search — Provides instant suggestion while the user types. Enables fast searches even wiht a large number of notes. Even user mispelled, particular search can be found.
 
-🧩 Content-based Filtering — Suggests materials by analyzing content similarity such as topics or categories.
+🧩 Hybrid Cryptosystem (RSA + AES) - Offers secure end-to-end encryption for all messages. Ensures fast and private communication within the application.
 
 ⚡ Hybrid Filtering — Combines collaborative and content-based approaches to achieve higher recommendation accuracy.
 

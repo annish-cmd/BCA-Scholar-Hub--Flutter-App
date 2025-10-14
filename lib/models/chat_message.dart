@@ -8,13 +8,13 @@ class ChatMessage {
   final String? replyToId;
   final String? replyToUserName;
   final String? replyToText;
-  
+
   // Encryption fields
   final String? cipherText; // Encrypted message text
   final String? iv; // Initialization vector for AES
   final Map<String, dynamic>? encryptedKeys; // User ID -> Encrypted AES key
   final bool isEncrypted; // Flag to indicate if the message is encrypted
-  
+
   // Admin field
   final bool isAdmin; // Flag to indicate if the message is from an admin
 
@@ -40,7 +40,7 @@ class ChatMessage {
     // Handle encrypted messages
     final bool isEncrypted = data['isEncrypted'] ?? false;
     final bool isAdmin = data['isAdmin'] ?? false;
-    
+
     return ChatMessage(
       id: id,
       userId: data['userId'] ?? '',
@@ -53,9 +53,10 @@ class ChatMessage {
       replyToText: data['replyToText'],
       cipherText: data['cipherText'],
       iv: data['iv'],
-      encryptedKeys: data['encryptedKeys'] != null 
-          ? Map<String, dynamic>.from(data['encryptedKeys'])
-          : null,
+      encryptedKeys:
+          data['encryptedKeys'] != null
+              ? Map<String, dynamic>.from(data['encryptedKeys'])
+              : null,
       isEncrypted: isEncrypted,
       isAdmin: isAdmin,
     );
@@ -85,24 +86,24 @@ class ChatMessage {
     if (replyToText != null) {
       map['replyToText'] = replyToText!;
     }
-    
+
     // Add admin flag
     if (isAdmin) {
       map['isAdmin'] = true;
     }
-    
+
     // Add encryption data if this is an encrypted message
     if (isEncrypted) {
       map['isEncrypted'] = true;
-      
+
       if (cipherText != null) {
         map['cipherText'] = cipherText!;
       }
-      
+
       if (iv != null) {
         map['iv'] = iv!;
       }
-      
+
       if (encryptedKeys != null) {
         map['encryptedKeys'] = encryptedKeys!;
       }
