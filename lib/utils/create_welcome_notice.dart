@@ -40,6 +40,8 @@ Happy Learning! 📖✨''',
         authorName: 'BCA Scholar Hub Team',
         createdAt: DateTime.now(),
         isImportant: true,
+        priority: NoticePriority.high,
+        category: NoticeCategory.announcement,
         tags: ['welcome', 'getting-started', 'important'],
       );
 

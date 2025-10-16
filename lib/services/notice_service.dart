@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/notice.dart';
@@ -7,6 +8,11 @@ class NoticeService {
   static final Logger _logger = Logger();
   static final DatabaseReference _noticesRef = FirebaseDatabase.instance.ref('notices');
   static final FirebaseAuth _auth = FirebaseAuth.instance;
+  
+  // Cache for notices to reduce Firebase calls
+  static List<Notice>? _cachedNotices;
+  static DateTime? _lastFetchTime;
+  static const Duration _cacheExpiry = Duration(minutes: 5);
 
   /// Add a new notice to Firebase
   static Future<String?> addNotice(Notice notice) async {
@@ -34,6 +40,9 @@ class NoticeService {
       // Save to Firebase
       await newNoticeRef.set(noticeWithId.toMap());
       
+      // Clear cache to force refresh
+      _clearCache();
+      
       _logger.i('Notice added successfully with ID: $noticeId');
       return noticeId;
     } catch (e) {
@@ -42,10 +51,19 @@ class NoticeService {
     }
   }
 
-  /// Get all notices from Firebase
-  static Future<List<Notice>> getAllNotices() async {
+  /// Get all notices from Firebase with caching
+  static Future<List<Notice>> getAllNotices({bool forceRefresh = false}) async {
     try {
-      _logger.d('Fetching all notices from Firebase');
+      // Check if we have cached data and it's still valid
+      if (!forceRefresh && 
+          _cachedNotices != null && 
+          _lastFetchTime != null && 
+          DateTime.now().difference(_lastFetchTime!) < _cacheExpiry) {
+        _logger.d('Returning cached notices (${_cachedNotices!.length} notices)');
+        return List.from(_cachedNotices!);
+      }
+
+      _logger.d('Fetching notices from Firebase');
       
       final snapshot = await _noticesRef.once();
       final List<Notice> notices = [];
@@ -55,18 +73,36 @@ class NoticeService {
         
         data.forEach((key, value) {
           if (value is Map) {
-            notices.add(Notice.fromMap(key.toString(), Map<String, dynamic>.from(value)));
+            try {
+              final notice = Notice.fromMap(key.toString(), Map<String, dynamic>.from(value));
+              notices.add(notice);
+            } catch (e) {
+              _logger.e('Error parsing notice $key:', error: e);
+            }
           }
         });
 
-        // Sort by creation date (newest first)
-        notices.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        // Sort by creation date (newest first) with additional sorting by updatedAt if available
+        notices.sort((a, b) {
+          final aTime = a.updatedAt ?? a.createdAt;
+          final bTime = b.updatedAt ?? b.createdAt;
+          return bTime.compareTo(aTime);
+        });
       }
 
-      _logger.i('Fetched ${notices.length} notices');
+      // Update cache
+      _cachedNotices = notices;
+      _lastFetchTime = DateTime.now();
+
+      _logger.i('Fetched and cached ${notices.length} notices');
       return notices;
     } catch (e) {
       _logger.e('Error fetching notices:', error: e);
+      // Return cached data if available, even if expired
+      if (_cachedNotices != null) {
+        _logger.w('Returning cached notices due to error');
+        return List.from(_cachedNotices!);
+      }
       return [];
     }
   }
@@ -84,12 +120,21 @@ class NoticeService {
         
         data.forEach((key, value) {
           if (value is Map && value['authorId'] == authorId) {
-            notices.add(Notice.fromMap(key.toString(), Map<String, dynamic>.from(value)));
+            try {
+              final notice = Notice.fromMap(key.toString(), Map<String, dynamic>.from(value));
+              notices.add(notice);
+            } catch (e) {
+              _logger.e('Error parsing notice $key:', error: e);
+            }
           }
         });
 
-        // Sort by creation date (newest first)
-        notices.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        // Sort by creation date (newest first) with additional sorting by updatedAt if available
+        notices.sort((a, b) {
+          final aTime = a.updatedAt ?? a.createdAt;
+          final bTime = b.updatedAt ?? b.createdAt;
+          return bTime.compareTo(aTime);
+        });
       }
 
       _logger.i('Fetched ${notices.length} notices by author');
@@ -118,6 +163,9 @@ class NoticeService {
 
       await _noticesRef.child(noticeId).update(noticeWithTimestamp.toMap());
       
+      // Clear cache to force refresh
+      _clearCache();
+      
       _logger.i('Notice updated successfully');
       return true;
     } catch (e) {
@@ -138,6 +186,9 @@ class NoticeService {
       }
 
       await _noticesRef.child(noticeId).remove();
+      
+      // Clear cache to force refresh
+      _clearCache();
       
       _logger.i('Notice deleted successfully');
       return true;
@@ -186,6 +237,58 @@ class NoticeService {
       'name': user.displayName ?? user.email?.split('@')[0] ?? 'User',
       'email': user.email ?? '',
     };
+  }
+
+  /// Clear the notices cache
+  static void _clearCache() {
+    _cachedNotices = null;
+    _lastFetchTime = null;
+    _logger.d('Notice cache cleared');
+  }
+
+  /// Force clear cache (public method for debugging)
+  static void clearCache() {
+    _clearCache();
+  }
+
+  /// Get notices stream for real-time updates
+  static Stream<List<Notice>> getNoticesStream() {
+    return _noticesRef.onValue.map((event) {
+      final List<Notice> notices = [];
+      
+      if (event.snapshot.exists && event.snapshot.value != null) {
+        final data = event.snapshot.value as Map<dynamic, dynamic>;
+        
+        data.forEach((key, value) {
+          if (value is Map) {
+            try {
+              final notice = Notice.fromMap(key.toString(), Map<String, dynamic>.from(value));
+              notices.add(notice);
+            } catch (e) {
+              _logger.e('Error parsing notice $key in stream:', error: e);
+            }
+          }
+        });
+
+        // Sort by creation date (newest first)
+        notices.sort((a, b) {
+          final aTime = a.updatedAt ?? a.createdAt;
+          final bTime = b.updatedAt ?? b.createdAt;
+          return bTime.compareTo(aTime);
+        });
+
+        // Update cache with fresh data
+        _cachedNotices = notices;
+        _lastFetchTime = DateTime.now();
+      }
+      
+      return notices;
+    });
+  }
+
+  /// Force refresh notices from Firebase
+  static Future<List<Notice>> refreshNotices() async {
+    return getAllNotices(forceRefresh: true);
   }
 }
 

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../utils/theme_provider.dart';
 import '../services/notice_service.dart';
 import '../models/notice.dart';
+import '../widgets/professional_notice_card.dart';
 import 'add_notice_screen.dart';
 import 'package:logger/logger.dart';
 
@@ -22,32 +23,44 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
   @override
   void initState() {
     super.initState();
-    _loadNotices();
+    // Clear cache to ensure fresh data with new field mapping
+    NoticeService.clearCache();
+    _loadNotices(forceRefresh: true);
   }
 
-  Future<void> _loadNotices() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+  Future<void> _loadNotices({bool forceRefresh = false}) async {
+    // Don't show loading if we're just refreshing
+    if (forceRefresh && _notices.isNotEmpty) {
+      // Just update in background
+    } else {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+    }
 
     try {
-      final notices = await NoticeService.getAllNotices();
-      setState(() {
-        _notices = notices;
-        _isLoading = false;
-      });
+      final notices = await NoticeService.getAllNotices(forceRefresh: forceRefresh);
+      if (mounted) {
+        setState(() {
+          _notices = notices;
+          _isLoading = false;
+          _errorMessage = '';
+        });
+      }
     } catch (e) {
       _logger.e('Error loading notices:', error: e);
-      setState(() {
-        _errorMessage = 'Failed to load notices. Please try again.';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load notices. Please try again.';
+          _isLoading = false;
+        });
+      }
     }
   }
 
   Future<void> _refreshNotices() async {
-    await _loadNotices();
+    await _loadNotices(forceRefresh: true);
   }
 
   @override
@@ -199,150 +212,18 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
         itemCount: _notices.length,
         itemBuilder: (context, index) {
           final notice = _notices[index];
-          return _buildNoticeCard(notice, isDarkMode, textColor);
+          return ProfessionalNoticeCard(
+            notice: notice,
+            isDarkMode: isDarkMode,
+            onTap: () => _showNoticeDetails(notice, isDarkMode, textColor),
+            onEdit: () => _editNotice(notice),
+            onDelete: () => _deleteNotice(notice),
+          );
         },
       ),
     );
   }
 
-  Widget _buildNoticeCard(Notice notice, bool isDarkMode, Color textColor) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: isDarkMode ? const Color(0xFF1F1F1F) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: notice.isImportant
-            ? Border.all(color: Colors.red, width: 2)
-            : Border.all(
-                color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
-              ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: InkWell(
-        onTap: () => _showNoticeDetails(notice, isDarkMode, textColor),
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header with title and important badge
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      notice.title,
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  if (notice.isImportant)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Text(
-                        'IMPORTANT',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              // Content preview
-              Text(
-                notice.content,
-                style: TextStyle(
-                  color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
-                  fontSize: 14,
-                  height: 1.4,
-                ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-
-              const SizedBox(height: 16),
-
-              // Footer with author and date
-              Row(
-                children: [
-                  Icon(
-                    Icons.person,
-                    size: 16,
-                    color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    notice.authorName,
-                    style: TextStyle(
-                      color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Icon(
-                    Icons.access_time,
-                    size: 16,
-                    color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    _formatDate(notice.createdAt),
-                    style: TextStyle(
-                      color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                      fontSize: 12,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (notice.tags.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '${notice.tags.length} tag${notice.tags.length > 1 ? 's' : ''}',
-                        style: TextStyle(
-                          color: Colors.blue,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   void _showNoticeDetails(Notice notice, bool isDarkMode, Color textColor) {
     showModalBottomSheet(
@@ -537,6 +418,55 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
       return '${difference.inDays} days ago';
     } else {
       return '${date.day}/${date.month}/${date.year}';
+    }
+  }
+
+  void _editNotice(Notice notice) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddNoticeScreen(notice: notice),
+      ),
+    ).then((_) => _refreshNotices());
+  }
+
+  Future<void> _deleteNotice(Notice notice) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Notice'),
+        content: const Text('Are you sure you want to delete this notice? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await NoticeService.deleteNotice(notice.id);
+        _refreshNotices();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Notice deleted successfully')),
+          );
+        }
+      } catch (e) {
+        _logger.e('Error deleting notice:', error: e);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to delete notice')),
+          );
+        }
+      }
     }
   }
 }
