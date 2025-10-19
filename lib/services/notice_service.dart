@@ -6,19 +6,30 @@ import 'package:logger/logger.dart';
 
 class NoticeService {
   static final Logger _logger = Logger();
-  static final DatabaseReference _noticesRef = FirebaseDatabase.instance.ref('notices');
+  static final DatabaseReference _noticesRef = FirebaseDatabase.instance.ref(
+    'notices',
+  );
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  
+
+  // Make the reference public so it can be accessed from other files
+  static DatabaseReference get noticesRef => _noticesRef;
+
   // Cache for notices to reduce Firebase calls
   static List<Notice>? _cachedNotices;
   static DateTime? _lastFetchTime;
-  static const Duration _cacheExpiry = Duration(minutes: 5);
+  static const Duration _cacheExpiry = Duration(
+    seconds: 30,
+  ); // Reduced from 5 minutes to 30 seconds
+
+  // Stream controller for real-time notice updates
+  static StreamController<List<Notice>>? _noticesStreamController;
+  static StreamSubscription<DatabaseEvent>? _noticesSubscription;
 
   /// Add a new notice to Firebase
   static Future<String?> addNotice(Notice notice) async {
     try {
       _logger.d('Adding new notice: ${notice.title}');
-      
+
       final user = _auth.currentUser;
       if (user == null) {
         _logger.e('User not authenticated');
@@ -28,7 +39,7 @@ class NoticeService {
       // Create a new notice with generated ID
       final newNoticeRef = _noticesRef.push();
       final noticeId = newNoticeRef.key;
-      
+
       if (noticeId == null) {
         _logger.e('Failed to generate notice ID');
         return null;
@@ -36,13 +47,13 @@ class NoticeService {
 
       // Create notice with ID
       final noticeWithId = notice.copyWith(id: noticeId);
-      
+
       // Save to Firebase
       await newNoticeRef.set(noticeWithId.toMap());
-      
+
       // Clear cache to force refresh
       _clearCache();
-      
+
       _logger.i('Notice added successfully with ID: $noticeId');
       return noticeId;
     } catch (e) {
@@ -54,27 +65,32 @@ class NoticeService {
   /// Get all notices from Firebase with caching
   static Future<List<Notice>> getAllNotices({bool forceRefresh = false}) async {
     try {
-      // Check if we have cached data and it's still valid
-      if (!forceRefresh && 
-          _cachedNotices != null && 
-          _lastFetchTime != null && 
+      // Check if we have cached data and it's still valid (reduced cache time for faster updates)
+      if (!forceRefresh &&
+          _cachedNotices != null &&
+          _lastFetchTime != null &&
           DateTime.now().difference(_lastFetchTime!) < _cacheExpiry) {
-        _logger.d('Returning cached notices (${_cachedNotices!.length} notices)');
+        _logger.d(
+          'Returning cached notices (${_cachedNotices!.length} notices)',
+        );
         return List.from(_cachedNotices!);
       }
 
       _logger.d('Fetching notices from Firebase');
-      
+
       final snapshot = await _noticesRef.once();
       final List<Notice> notices = [];
 
       if (snapshot.snapshot.exists && snapshot.snapshot.value != null) {
         final data = snapshot.snapshot.value as Map<dynamic, dynamic>;
-        
+
         data.forEach((key, value) {
           if (value is Map) {
             try {
-              final notice = Notice.fromMap(key.toString(), Map<String, dynamic>.from(value));
+              final notice = Notice.fromMap(
+                key.toString(),
+                Map<String, dynamic>.from(value),
+              );
               notices.add(notice);
             } catch (e) {
               _logger.e('Error parsing notice $key:', error: e);
@@ -111,17 +127,20 @@ class NoticeService {
   static Future<List<Notice>> getNoticesByAuthor(String authorId) async {
     try {
       _logger.d('Fetching notices by author: $authorId');
-      
+
       final snapshot = await _noticesRef.once();
       final List<Notice> notices = [];
 
       if (snapshot.snapshot.exists && snapshot.snapshot.value != null) {
         final data = snapshot.snapshot.value as Map<dynamic, dynamic>;
-        
+
         data.forEach((key, value) {
           if (value is Map && value['authorId'] == authorId) {
             try {
-              final notice = Notice.fromMap(key.toString(), Map<String, dynamic>.from(value));
+              final notice = Notice.fromMap(
+                key.toString(),
+                Map<String, dynamic>.from(value),
+              );
               notices.add(notice);
             } catch (e) {
               _logger.e('Error parsing notice $key:', error: e);
@@ -146,10 +165,13 @@ class NoticeService {
   }
 
   /// Update an existing notice
-  static Future<bool> updateNotice(String noticeId, Notice updatedNotice) async {
+  static Future<bool> updateNotice(
+    String noticeId,
+    Notice updatedNotice,
+  ) async {
     try {
       _logger.d('Updating notice: $noticeId');
-      
+
       final user = _auth.currentUser;
       if (user == null) {
         _logger.e('User not authenticated');
@@ -162,10 +184,10 @@ class NoticeService {
       );
 
       await _noticesRef.child(noticeId).update(noticeWithTimestamp.toMap());
-      
+
       // Clear cache to force refresh
       _clearCache();
-      
+
       _logger.i('Notice updated successfully');
       return true;
     } catch (e) {
@@ -178,7 +200,7 @@ class NoticeService {
   static Future<bool> deleteNotice(String noticeId) async {
     try {
       _logger.d('Deleting notice: $noticeId');
-      
+
       final user = _auth.currentUser;
       if (user == null) {
         _logger.e('User not authenticated');
@@ -186,10 +208,10 @@ class NoticeService {
       }
 
       await _noticesRef.child(noticeId).remove();
-      
+
       // Clear cache to force refresh
       _clearCache();
-      
+
       _logger.i('Notice deleted successfully');
       return true;
     } catch (e) {
@@ -202,10 +224,11 @@ class NoticeService {
   static Future<List<Notice>> getImportantNotices() async {
     try {
       _logger.d('Fetching important notices');
-      
+
       final allNotices = await getAllNotices();
-      final importantNotices = allNotices.where((notice) => notice.isImportant).toList();
-      
+      final importantNotices =
+          allNotices.where((notice) => notice.isImportant).toList();
+
       _logger.i('Fetched ${importantNotices.length} important notices');
       return importantNotices;
     } catch (e) {
@@ -218,7 +241,7 @@ class NoticeService {
   static bool isUserAdmin() {
     final user = _auth.currentUser;
     if (user == null) return false;
-    
+
     // For now, we'll consider users with specific email domains as admin
     // You can modify this logic based on your requirements
     final adminEmails = ['admin@bca.com', 'anish@bca.com'];
@@ -231,7 +254,7 @@ class NoticeService {
     if (user == null) {
       return {'id': '', 'name': 'Anonymous', 'email': ''};
     }
-    
+
     return {
       'id': user.uid,
       'name': user.displayName ?? user.email?.split('@')[0] ?? 'User',
@@ -251,18 +274,89 @@ class NoticeService {
     _clearCache();
   }
 
-  /// Get notices stream for real-time updates
+  /// Initialize real-time notice stream
+  static Stream<List<Notice>> initializeNoticesStream() {
+    // Close existing stream if it exists
+    _noticesStreamController?.close();
+    _noticesSubscription?.cancel();
+
+    // Create new stream controller
+    _noticesStreamController = StreamController<List<Notice>>.broadcast();
+
+    // Set up real-time listener
+    _noticesSubscription = _noticesRef
+        .orderByChild('timestamp')
+        .onValue
+        .listen(
+          (event) {
+            final List<Notice> notices = [];
+
+            if (event.snapshot.exists && event.snapshot.value != null) {
+              final data = event.snapshot.value as Map<dynamic, dynamic>;
+
+              data.forEach((key, value) {
+                if (value is Map) {
+                  try {
+                    final notice = Notice.fromMap(
+                      key.toString(),
+                      Map<String, dynamic>.from(value),
+                    );
+                    notices.add(notice);
+                  } catch (e) {
+                    _logger.e('Error parsing notice $key in stream:', error: e);
+                  }
+                }
+              });
+
+              // Sort by creation date (newest first)
+              notices.sort((a, b) {
+                final aTime = a.updatedAt ?? a.createdAt;
+                final bTime = b.updatedAt ?? b.createdAt;
+                return bTime.compareTo(aTime);
+              });
+
+              // Update cache
+              _cachedNotices = notices;
+              _lastFetchTime = DateTime.now();
+
+              // Add to stream
+              _noticesStreamController?.add(notices);
+            } else {
+              // No data, send empty list
+              _noticesStreamController?.add([]);
+            }
+          },
+          onError: (error) {
+            _logger.e('Error in notices stream:', error: error);
+          },
+        );
+
+    return _noticesStreamController!.stream;
+  }
+
+  /// Close real-time notice stream
+  static void closeNoticesStream() {
+    _noticesSubscription?.cancel();
+    _noticesStreamController?.close();
+    _noticesStreamController = null;
+    _noticesSubscription = null;
+  }
+
+  /// Get notices stream for real-time updates (public method)
   static Stream<List<Notice>> getNoticesStream() {
     return _noticesRef.onValue.map((event) {
       final List<Notice> notices = [];
-      
+
       if (event.snapshot.exists && event.snapshot.value != null) {
         final data = event.snapshot.value as Map<dynamic, dynamic>;
-        
+
         data.forEach((key, value) {
           if (value is Map) {
             try {
-              final notice = Notice.fromMap(key.toString(), Map<String, dynamic>.from(value));
+              final notice = Notice.fromMap(
+                key.toString(),
+                Map<String, dynamic>.from(value),
+              );
               notices.add(notice);
             } catch (e) {
               _logger.e('Error parsing notice $key in stream:', error: e);
@@ -281,14 +375,15 @@ class NoticeService {
         _cachedNotices = notices;
         _lastFetchTime = DateTime.now();
       }
-      
+
       return notices;
     });
   }
 
   /// Force refresh notices from Firebase
   static Future<List<Notice>> refreshNotices() async {
+    // Clear cache before refresh to force fresh data
+    _clearCache();
     return getAllNotices(forceRefresh: true);
   }
 }
-

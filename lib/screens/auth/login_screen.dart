@@ -40,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final rememberMe = await authProvider.getRememberMePreference();
-      
+
       if (rememberMe) {
         final savedCredentials = await authProvider.getSavedCredentials();
         if (savedCredentials != null) {
@@ -623,35 +623,17 @@ class _LoginScreenState extends State<LoginScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            _socialLoginButton(
-                              icon: 'assets/icons/google.png',
-                              onTap: () {
-                                // Handle Google login
-                                _handleGoogleSignIn();
-                              },
-                              isDarkMode: isDarkMode,
-                              iconData: Icons.g_mobiledata,
-                              iconColor: Colors.red,
-                            ),
-                            const SizedBox(width: 20),
-                            _socialLoginButton(
-                              icon: 'assets/icons/facebook.png',
-                              onTap: () {
-                                // Handle Facebook login
-                              },
-                              isDarkMode: isDarkMode,
-                              iconData: Icons.facebook,
-                              iconColor: const Color(0xFF1877F2),
-                            ),
-                            const SizedBox(width: 20),
-                            _socialLoginButton(
-                              icon: 'assets/icons/apple.png',
-                              onTap: () {
-                                // Handle Apple login
-                              },
-                              isDarkMode: isDarkMode,
-                              iconData: Icons.apple,
-                              iconColor: Colors.black87,
+                            Expanded(
+                              child: _socialLoginButton(
+                                icon: 'assets/icons/google.png',
+                                onTap: () {
+                                  // Handle Google login
+                                  _handleGoogleSignIn();
+                                },
+                                isDarkMode: isDarkMode,
+                                iconData: Icons.g_mobiledata,
+                                iconColor: Colors.red,
+                              ),
                             ),
                           ],
                         ),
@@ -709,7 +691,6 @@ class _LoginScreenState extends State<LoginScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 60,
         height: 60,
         decoration: BoxDecoration(
           color: isDarkMode ? Colors.grey[800] : Colors.white,
@@ -722,7 +703,21 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ],
         ),
-        child: Center(child: Icon(iconData, size: 30, color: iconColor)),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(iconData, size: 30, color: iconColor),
+            const SizedBox(width: 10),
+            const Text(
+              'Continue with Google',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

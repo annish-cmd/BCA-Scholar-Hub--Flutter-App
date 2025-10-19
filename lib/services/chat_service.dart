@@ -149,14 +149,23 @@ class ChatService extends ChangeNotifier {
   // Reference to the global chat collection
   DatabaseReference get _chatRef => _database.ref('global_chat');
 
+  // Helper method to get 24-hour cutoff timestamp for faster loading
+  int get _get24HourCutoffTimestamp {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    const twentyFourHours = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    return now - twentyFourHours;
+  }
+
   // Eagerly load messages to ensure they're available when needed
   Future<void> _eagerlyLoadMessages() async {
     if (_isLoadingMessages) return;
 
     _isLoadingMessages = true;
     try {
-      final snapshot =
-          await _chatRef.orderByChild('timestamp').limitToLast(100).get();
+      final snapshot = await _chatRef
+          .orderByChild('timestamp')
+          .startAt(_get24HourCutoffTimestamp)
+          .get();
 
       if (snapshot.exists && snapshot.value != null) {
         final data = snapshot.value as Map<dynamic, dynamic>;
@@ -207,6 +216,12 @@ class ChatService extends ChangeNotifier {
       // Skip if already cached
       if (_decryptedMessageCache.containsKey(messageId)) {
         _cachedMessages[i] = _decryptedMessageCache[messageId]!;
+        continue;
+      }
+
+      // Skip if we've already tried and failed to decrypt this message
+      if (_decryptionTextCache.containsKey(messageId) &&
+          _decryptionTextCache[messageId]!.isEmpty) {
         continue;
       }
 
@@ -377,10 +392,10 @@ class ChatService extends ChangeNotifier {
     // Cancel existing subscription
     _firebaseStreamSubscription?.cancel();
 
-    // Listen to Firebase and emit processed messages
+    // Listen to Firebase and emit processed messages (24-hour window only)
     _firebaseStreamSubscription = _chatRef
         .orderByChild('timestamp')
-        .limitToLast(100)
+        .startAt(_get24HourCutoffTimestamp)
         .onValue
         .listen((event) async {
           final data = event.snapshot.value;
@@ -474,7 +489,7 @@ class ChatService extends ChangeNotifier {
   void _refreshMessageStream() {
     _chatRef
         .orderByChild('timestamp')
-        .limitToLast(100)
+        .startAt(_get24HourCutoffTimestamp)
         .once()
         .then((snapshot) {
           final data = snapshot.snapshot.value;
@@ -535,6 +550,13 @@ class ChatService extends ChangeNotifier {
   // Force decrypt message even if encryption not initialized
   Future<void> _forceDecryptMessage(ChatMessage message) async {
     try {
+      // Check if we've already tried and failed to decrypt this message
+      if (_decryptionTextCache.containsKey(message.id) &&
+          _decryptionTextCache[message.id]!.isEmpty) {
+        // We've already tried and failed, don't retry
+        return;
+      }
+
       // Ensure encryption is initialized before decrypting
       if (!_isEncryptionInitialized) {
         await _checkEncryptionStatus();
@@ -546,6 +568,9 @@ class ChatService extends ChangeNotifier {
         _decryptionTextCache[message.id] = decryptedText;
 
         _updateMessageCacheAndNotify(message, decryptedText);
+      } else {
+        // Cache empty result to prevent repeated failed attempts
+        _decryptionTextCache[message.id] = "";
       }
     } catch (error) {
       _logger.w('Decryption error for message ${message.id}: $error');
@@ -663,6 +688,13 @@ class ChatService extends ChangeNotifier {
         return "";
       }
 
+      // Check if we've already tried and failed to decrypt this message
+      if (_decryptionTextCache.containsKey(message.id) &&
+          _decryptionTextCache[message.id]!.isEmpty) {
+        // We've already tried and failed, don't retry
+        return "";
+      }
+
       final decryptedText = await _encryptionService.decryptGlobalChatMessage(
         message.cipherText!,
         message.iv!,
@@ -673,10 +705,14 @@ class ChatService extends ChangeNotifier {
         _throttledNotify();
         return decryptedText;
       } else {
+        // Cache empty result to prevent repeated failed attempts
+        _decryptionTextCache[message.id] = "";
         return "";
       }
     } catch (e) {
       _logger.e('Error decrypting message: $e');
+      // Cache empty result to prevent repeated failed attempts
+      _decryptionTextCache[message.id] = "";
       // Return original text if available, or an empty string (NOT an error message)
       return message.text.isNotEmpty ? message.text : "";
     }
@@ -716,9 +752,11 @@ class ChatService extends ChangeNotifier {
 
     // Otherwise try to load them
     try {
-      // First try to get the most recent messages from Firebase
-      final snapshot =
-          await _chatRef.orderByChild('timestamp').limitToLast(50).get();
+      // First try to get the most recent messages from Firebase (24-hour window)
+      final snapshot = await _chatRef
+          .orderByChild('timestamp')
+          .startAt(_get24HourCutoffTimestamp)
+          .get();
 
       if (snapshot.exists && snapshot.value != null) {
         final data = snapshot.value as Map<dynamic, dynamic>;

@@ -249,9 +249,21 @@ class EncryptionService {
       final privateKey = _rsaAlgorithm.parsePrivateKeyFromPem(privateKeyPem);
 
       try {
+        // Validate encrypted key format before decryption
+        final encryptedKeyBytes = base64.decode(encryptedKey);
+
+        // Check if the encrypted key size is compatible with our RSA key
+        // RSA 2048-bit key can only encrypt data up to 256 bytes (2048 bits / 8)
+        if (encryptedKeyBytes.length > 256) {
+          _logger.e(
+            'Encrypted key too large for RSA decryption: ${encryptedKeyBytes.length} bytes',
+          );
+          return null;
+        }
+
         // Decrypt AES key with user's private key
         final aesKeyBytes = _rsaAlgorithm.decrypt(
-          base64.decode(encryptedKey),
+          encryptedKeyBytes,
           privateKey,
         );
 

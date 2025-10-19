@@ -1,4 +1,5 @@
 enum NoticePriority { high, normal, low }
+
 enum NoticeCategory { exam, assignment, event, general, announcement, academic }
 
 class Notice {
@@ -33,24 +34,28 @@ class Notice {
   factory Notice.fromMap(String id, Map<String, dynamic> map) {
     // Debug: Print the raw Firebase data
     print('🔥 Firebase Data for $id: $map');
-    
+
     // Handle both old and new field names for backward compatibility
     final title = map['title']?.toString() ?? 'No Title';
-    final content = map['message']?.toString() ?? map['content']?.toString() ?? 'No Content';
-    final authorId = map['adminId']?.toString() ?? map['authorId']?.toString() ?? 'unknown';
-    final authorName = map['adminName']?.toString() ?? map['authorName']?.toString() ?? 'Admin';
-    
+    final content =
+        map['message']?.toString() ??
+        map['content']?.toString() ??
+        'No Content';
+    final authorId =
+        map['adminId']?.toString() ?? map['authorId']?.toString() ?? 'unknown';
+    final authorName =
+        map['adminName']?.toString() ??
+        map['authorName']?.toString() ??
+        'Admin';
+
     // Debug: Print parsed values
     print('📝 Parsed - Title: $title, Content: $content, Author: $authorName');
-    
+
     // Handle timestamp field (Firebase uses 'timestamp', our model uses 'createdAt')
     final timestamp = map['timestamp'] ?? map['createdAt'];
-    final createdAt = timestamp != null 
-        ? DateTime.fromMillisecondsSinceEpoch(timestamp is int 
-            ? timestamp 
-            : int.tryParse(timestamp.toString()) ?? DateTime.now().millisecondsSinceEpoch)
-        : DateTime.now();
-    
+    final createdAt =
+        timestamp != null ? _parseTimestamp(timestamp) : DateTime.now();
+
     return Notice(
       id: id,
       title: title,
@@ -58,24 +63,49 @@ class Notice {
       authorId: authorId,
       authorName: authorName,
       createdAt: createdAt,
-      updatedAt: map['updatedAt'] != null 
-          ? DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] is int 
-              ? map['updatedAt'] 
-              : int.tryParse(map['updatedAt'].toString()) ?? DateTime.now().millisecondsSinceEpoch)
-          : null,
+      updatedAt:
+          map['updatedAt'] != null ? _parseTimestamp(map['updatedAt']) : null,
       isImportant: map['isImportant'] == true || map['isImportant'] == 'true',
       imageUrl: map['imageUrl']?.toString(),
-      tags: map['tags'] != null 
-          ? List<String>.from(map['tags']) 
-          : <String>[],
+      tags: map['tags'] != null ? List<String>.from(map['tags']) : <String>[],
       priority: _parsePriority(map['priority']),
       category: _parseCategory(map['category']),
     );
   }
-  
+
+  static DateTime _parseTimestamp(dynamic timestamp) {
+    try {
+      if (timestamp == null) return DateTime.now();
+
+      // Convert to int if it's a string
+      int timestampInt;
+      if (timestamp is String) {
+        timestampInt =
+            int.tryParse(timestamp) ?? DateTime.now().millisecondsSinceEpoch;
+      } else if (timestamp is int) {
+        timestampInt = timestamp;
+      } else {
+        timestampInt = DateTime.now().millisecondsSinceEpoch;
+      }
+
+      // Check if timestamp is in milliseconds (13 digits) or seconds (10 digits)
+      // If it's a large number (> 10000000000), it's likely in milliseconds
+      if (timestampInt > 10000000000) {
+        // Timestamp is in milliseconds
+        return DateTime.fromMillisecondsSinceEpoch(timestampInt);
+      } else {
+        // Timestamp is in seconds
+        return DateTime.fromMillisecondsSinceEpoch(timestampInt * 1000);
+      }
+    } catch (e) {
+      print('Error parsing timestamp: $e');
+      return DateTime.now();
+    }
+  }
+
   static NoticePriority _parsePriority(dynamic priority) {
     if (priority == null) return NoticePriority.normal;
-    
+
     final priorityStr = priority.toString().toLowerCase();
     switch (priorityStr) {
       case 'high':
@@ -87,10 +117,10 @@ class Notice {
         return NoticePriority.normal;
     }
   }
-  
+
   static NoticeCategory _parseCategory(dynamic category) {
     if (category == null) return NoticeCategory.general;
-    
+
     final categoryStr = category.toString().toLowerCase();
     switch (categoryStr) {
       case 'exam':
@@ -112,10 +142,11 @@ class Notice {
   Map<String, dynamic> toMap() {
     return {
       'title': title,
-      'message': content,  // Use 'message' for Firebase
-      'adminId': authorId,  // Use 'adminId' for Firebase
-      'adminName': authorName,  // Use 'adminName' for Firebase
-      'timestamp': createdAt.millisecondsSinceEpoch,  // Use 'timestamp' for Firebase
+      'message': content, // Use 'message' for Firebase
+      'adminId': authorId, // Use 'adminId' for Firebase
+      'adminName': authorName, // Use 'adminName' for Firebase
+      'timestamp':
+          createdAt.millisecondsSinceEpoch, // Use 'timestamp' for Firebase
       'updatedAt': updatedAt?.millisecondsSinceEpoch,
       'isImportant': isImportant,
       'imageUrl': imageUrl,
@@ -155,4 +186,3 @@ class Notice {
     );
   }
 }
-

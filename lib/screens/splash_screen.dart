@@ -329,14 +329,6 @@ class _SplashScreenState extends State<SplashScreen>
                                   'All Your BCA Study Materials',
                                   speed: const Duration(milliseconds: 83),
                                 ),
-                                TypewriterAnimatedText(
-                                  'Explore. Learn. Grow.',
-                                  speed: const Duration(milliseconds: 83),
-                                ),
-                                TypewriterAnimatedText(
-                                  'Access your study materials',
-                                  speed: const Duration(milliseconds: 83),
-                                ),
                               ],
                               totalRepeatCount: 1,
                               displayFullTextOnTap: true,

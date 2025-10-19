@@ -180,6 +180,14 @@ class RSAAlgorithm {
     try {
       final blockSize = cipher.inputBlockSize;
       final outputBlockSize = cipher.outputBlockSize;
+
+      // Validate block size to prevent "Input block too large" errors
+      if (blockSize <= 0 || outputBlockSize <= 0) {
+        throw Exception(
+          'Invalid block size: input=$blockSize, output=$outputBlockSize',
+        );
+      }
+
       final numBlocks = (input.length + blockSize - 1) ~/ blockSize;
       final output = Uint8List(numBlocks * outputBlockSize);
       var inputOffset = 0;
@@ -190,7 +198,18 @@ class RSAAlgorithm {
             (inputOffset + blockSize <= input.length)
                 ? blockSize
                 : input.length - inputOffset;
-        final inputChunk = input.sublist(inputOffset, inputOffset + chunkSize);
+
+        // Additional validation to prevent range errors
+        if (chunkSize <= 0) {
+          break;
+        }
+
+        // Ensure we don't exceed the maximum block size for RSA
+        final safeChunkSize = chunkSize > blockSize ? blockSize : chunkSize;
+        final inputChunk = input.sublist(
+          inputOffset,
+          inputOffset + safeChunkSize,
+        );
 
         try {
           final outputChunk = cipher.process(inputChunk);
@@ -199,12 +218,12 @@ class RSAAlgorithm {
             outputOffset + outputChunk.length,
             outputChunk,
           );
-          inputOffset += chunkSize;
+          inputOffset += safeChunkSize;
           outputOffset += outputChunk.length;
         } catch (e) {
           _logger.e('Error processing RSA block: $e');
           // If one block fails, try to continue with the next block
-          inputOffset += chunkSize;
+          inputOffset += safeChunkSize;
         }
       }
 

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'dart:async';
 import '../utils/theme_provider.dart';
 import '../services/notice_service.dart';
 import '../models/notice.dart';
@@ -19,40 +21,46 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
   List<Notice> _notices = [];
   bool _isLoading = true;
   String _errorMessage = '';
+  StreamSubscription<List<Notice>>? _noticesStreamSubscription;
 
   @override
   void initState() {
     super.initState();
-    // Clear cache to ensure fresh data with new field mapping
-    NoticeService.clearCache();
-    _loadNotices(forceRefresh: true);
+    _setupRealTimeNotices();
   }
 
-  Future<void> _loadNotices({bool forceRefresh = false}) async {
-    // Don't show loading if we're just refreshing
-    if (forceRefresh && _notices.isNotEmpty) {
-      // Just update in background
-    } else {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = '';
-      });
-    }
-
+  void _setupRealTimeNotices() {
     try {
-      final notices = await NoticeService.getAllNotices(forceRefresh: forceRefresh);
-      if (mounted) {
-        setState(() {
-          _notices = notices;
-          _isLoading = false;
-          _errorMessage = '';
-        });
-      }
+      // Cancel any existing subscription
+      _noticesStreamSubscription?.cancel();
+
+      // Set up real-time listener for notices using the service
+      _noticesStreamSubscription = NoticeService.initializeNoticesStream()
+          .listen(
+            (notices) {
+              if (mounted) {
+                setState(() {
+                  _notices = notices;
+                  _isLoading = false;
+                  _errorMessage = '';
+                });
+              }
+            },
+            onError: (error) {
+              _logger.e('Error in notices stream:', error: error);
+              if (mounted) {
+                setState(() {
+                  _errorMessage = 'Failed to load notices. Please try again.';
+                  _isLoading = false;
+                });
+              }
+            },
+          );
     } catch (e) {
-      _logger.e('Error loading notices:', error: e);
+      _logger.e('Error setting up real-time notices:', error: e);
       if (mounted) {
         setState(() {
-          _errorMessage = 'Failed to load notices. Please try again.';
+          _errorMessage = 'Failed to connect to notices service.';
           _isLoading = false;
         });
       }
@@ -60,7 +68,37 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
   }
 
   Future<void> _refreshNotices() async {
-    await _loadNotices(forceRefresh: true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      // Force a manual refresh
+      final notices = await NoticeService.refreshNotices();
+      if (mounted) {
+        setState(() {
+          _notices = notices;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      _logger.e('Error refreshing notices:', error: e);
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to refresh notices. Please try again.';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _noticesStreamSubscription?.cancel();
+    // Close the stream in the service when leaving the screen
+    NoticeService.closeNoticesStream();
+    super.dispose();
   }
 
   @override
@@ -70,16 +108,11 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
     final textColor = isDarkMode ? Colors.white : Colors.black;
 
     return Scaffold(
-      backgroundColor: isDarkMode 
-          ? const Color(0xFF121212) 
-          : Colors.grey[50],
+      backgroundColor: isDarkMode ? const Color(0xFF121212) : Colors.grey[50],
       appBar: AppBar(
         title: const Text(
           'Notices',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
         backgroundColor: isDarkMode ? const Color(0xFF1F1F1F) : Colors.blue,
         foregroundColor: Colors.white,
@@ -99,34 +132,43 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
               },
             ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon:
+                _isLoading
+                    ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                    : const Icon(Icons.refresh),
             onPressed: _refreshNotices,
           ),
         ],
       ),
       body: _buildBody(isDarkMode, textColor),
-      floatingActionButton: NoticeService.isUserAdmin()
-          ? FloatingActionButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AddNoticeScreen(),
-                  ),
-                );
-              },
-              backgroundColor: Colors.blue,
-              child: const Icon(Icons.add, color: Colors.white),
-            )
-          : null,
+      floatingActionButton:
+          NoticeService.isUserAdmin()
+              ? FloatingActionButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddNoticeScreen(),
+                    ),
+                  );
+                },
+                backgroundColor: Colors.blue,
+                child: const Icon(Icons.add, color: Colors.white),
+              )
+              : null,
     );
   }
 
   Widget _buildBody(bool isDarkMode, Color textColor) {
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+    if (_isLoading && _notices.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_errorMessage.isNotEmpty) {
@@ -134,18 +176,11 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red[300],
-            ),
+            Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
             const SizedBox(height: 16),
             Text(
               _errorMessage,
-              style: TextStyle(
-                color: textColor,
-                fontSize: 16,
-              ),
+              style: TextStyle(color: textColor, fontSize: 16),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -163,11 +198,7 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.campaign_outlined,
-              size: 64,
-              color: Colors.grey[400],
-            ),
+            Icon(Icons.campaign_outlined, size: 64, color: Colors.grey[400]),
             const SizedBox(height: 16),
             Text(
               'No notices available',
@@ -224,185 +255,192 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
     );
   }
 
-
   void _showNoticeDetails(Notice notice, bool isDarkMode, Color textColor) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.8,
-        decoration: BoxDecoration(
-          color: isDarkMode ? const Color(0xFF1F1F1F) : Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: Column(
-          children: [
-            // Handle bar
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
+      builder:
+          (context) => Container(
+            height: MediaQuery.of(context).size.height * 0.8,
+            decoration: BoxDecoration(
+              color: isDarkMode ? const Color(0xFF1F1F1F) : Colors.white,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
               ),
             ),
-            
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      notice.title,
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+            child: Column(
+              children: [
+                // Handle bar
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+
+                // Header
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          notice.title,
+                          style: TextStyle(
+                            color: textColor,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      if (notice.isImportant)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Text(
+                            'IMPORTANT',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+
+                // Content
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          notice.content,
+                          style: TextStyle(
+                            color:
+                                isDarkMode
+                                    ? Colors.grey[300]
+                                    : Colors.grey[700],
+                            fontSize: 16,
+                            height: 1.5,
+                          ),
+                        ),
+
+                        if (notice.imageUrl != null) ...[
+                          const SizedBox(height: 20),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              notice.imageUrl!,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  height: 200,
+                                  color: Colors.grey[300],
+                                  child: const Icon(Icons.broken_image),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+
+                        if (notice.tags.isNotEmpty) ...[
+                          const SizedBox(height: 20),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children:
+                                notice.tags.map((tag) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Text(
+                                      '#$tag',
+                                      style: TextStyle(
+                                        color: Colors.blue,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Footer
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                        color:
+                            isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
                       ),
                     ),
                   ),
-                  if (notice.isImportant)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.person,
+                        size: 16,
+                        color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
                       ),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Text(
-                        'IMPORTANT',
+                      const SizedBox(width: 4),
+                      Text(
+                        notice.authorName,
                         style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                          color:
+                              isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ),
-                ],
-              ),
-            ),
-            
-            // Content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      notice.content,
-                      style: TextStyle(
-                        color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
-                        fontSize: 16,
-                        height: 1.5,
+                      const SizedBox(width: 16),
+                      Icon(
+                        Icons.access_time,
+                        size: 16,
+                        color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
                       ),
-                    ),
-                    
-                    if (notice.imageUrl != null) ...[
-                      const SizedBox(height: 20),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          notice.imageUrl!,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              height: 200,
-                              color: Colors.grey[300],
-                              child: const Icon(Icons.broken_image),
-                            );
-                          },
+                      const SizedBox(width: 4),
+                      Text(
+                        _formatDate(notice.createdAt),
+                        style: TextStyle(
+                          color:
+                              isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                          fontSize: 14,
                         ),
                       ),
                     ],
-                    
-                    if (notice.tags.isNotEmpty) ...[
-                      const SizedBox(height: 20),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: notice.tags.map((tag) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Text(
-                              '#$tag',
-                              style: TextStyle(
-                                color: Colors.blue,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            
-            // Footer
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(
-                    color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
                   ),
                 ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.person,
-                    size: 16,
-                    color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    notice.authorName,
-                    style: TextStyle(
-                      color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Icon(
-                    Icons.access_time,
-                    size: 16,
-                    color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    _formatDate(notice.createdAt),
-                    style: TextStyle(
-                      color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
@@ -424,30 +462,31 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
   void _editNotice(Notice notice) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => AddNoticeScreen(notice: notice),
-      ),
+      MaterialPageRoute(builder: (context) => AddNoticeScreen(notice: notice)),
     ).then((_) => _refreshNotices());
   }
 
   Future<void> _deleteNotice(Notice notice) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Notice'),
-        content: const Text('Are you sure you want to delete this notice? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Notice'),
+            content: const Text(
+              'Are you sure you want to delete this notice? This action cannot be undone.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
     );
 
     if (confirmed == true) {
@@ -470,4 +509,3 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
     }
   }
 }
-
