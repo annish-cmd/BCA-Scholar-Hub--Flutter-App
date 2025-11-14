@@ -149,11 +149,11 @@ class ChatService extends ChangeNotifier {
   // Reference to the global chat collection
   DatabaseReference get _chatRef => _database.ref('global_chat');
 
-  // Helper method to get 24-hour cutoff timestamp for faster loading
-  int get _get24HourCutoffTimestamp {
+  // Helper method to get 12-hour cutoff timestamp for faster loading
+  int get _get12HourCutoffTimestamp {
     final now = DateTime.now().millisecondsSinceEpoch;
-    const twentyFourHours = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-    return now - twentyFourHours;
+    const twelveHours = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
+    return now - twelveHours;
   }
 
   // Eagerly load messages to ensure they're available when needed
@@ -164,7 +164,7 @@ class ChatService extends ChangeNotifier {
     try {
       final snapshot = await _chatRef
           .orderByChild('timestamp')
-          .startAt(_get24HourCutoffTimestamp)
+          .startAt(_get12HourCutoffTimestamp)
           .get();
 
       if (snapshot.exists && snapshot.value != null) {
@@ -392,10 +392,10 @@ class ChatService extends ChangeNotifier {
     // Cancel existing subscription
     _firebaseStreamSubscription?.cancel();
 
-    // Listen to Firebase and emit processed messages (24-hour window only)
+    // Listen to Firebase and emit processed messages (12-hour window only)
     _firebaseStreamSubscription = _chatRef
         .orderByChild('timestamp')
-        .startAt(_get24HourCutoffTimestamp)
+        .startAt(_get12HourCutoffTimestamp)
         .onValue
         .listen((event) async {
           final data = event.snapshot.value;
@@ -489,7 +489,7 @@ class ChatService extends ChangeNotifier {
   void _refreshMessageStream() {
     _chatRef
         .orderByChild('timestamp')
-        .startAt(_get24HourCutoffTimestamp)
+        .startAt(_get12HourCutoffTimestamp)
         .once()
         .then((snapshot) {
           final data = snapshot.snapshot.value;
@@ -752,10 +752,10 @@ class ChatService extends ChangeNotifier {
 
     // Otherwise try to load them
     try {
-      // First try to get the most recent messages from Firebase (24-hour window)
+      // First try to get the most recent messages from Firebase (12-hour window)
       final snapshot = await _chatRef
           .orderByChild('timestamp')
-          .startAt(_get24HourCutoffTimestamp)
+          .startAt(_get12HourCutoffTimestamp)
           .get();
 
       if (snapshot.exists && snapshot.value != null) {
