@@ -83,13 +83,11 @@ To make the Global Chat feature work, you need to configure Firebase Realtime Da
 - Timestamps are validated to prevent future-dated messages
 
 ## Limitations
-- Currently, there's no ability to delete messages
 - No support for message editing
 - No support for multimedia messages (images, videos, etc.)
 - No user blocking functionality
 
 ## Future Improvements
-- Add message deletion for user's own messages
 - Add support for image sharing
 - Add message reactions
 - Add user profile view on tap of username
