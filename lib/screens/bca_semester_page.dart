@@ -29,7 +29,7 @@ class _BcaSemesterPageState extends State<BcaSemesterPage>
   String _currentSemesterString = '';
 
   @override
-  bool get wantKeepAlive => false; // Don't keep state when switching semesters
+  bool get wantKeepAlive => true; // Keep state when switching semesters to improve performance
 
   @override
   void initState() {
@@ -44,6 +44,13 @@ class _BcaSemesterPageState extends State<BcaSemesterPage>
     if (oldWidget.semester != widget.semester) {
       _fetchSemesterNotes();
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh data when dependencies change (e.g., when navigating back to this page)
+    _fetchSemesterNotes();
   }
 
   // Convert numeric semester to ordinal format

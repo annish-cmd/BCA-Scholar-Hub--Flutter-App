@@ -31,6 +31,13 @@ class _SubjectListScreenState extends State<SubjectListScreen> {
     _fetchSubjects();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh data when dependencies change (e.g., when navigating back to this page)
+    _fetchSubjects();
+  }
+
   Future<void> _fetchSubjects() async {
     setState(() {
       _isLoading = true;

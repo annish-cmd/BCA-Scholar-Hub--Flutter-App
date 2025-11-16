@@ -34,6 +34,13 @@ class _SubjectNotesScreenState extends State<SubjectNotesScreen> {
     _fetchSubjectNotes();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh data when dependencies change (e.g., when navigating back to this page)
+    _fetchSubjectNotes();
+  }
+
   Future<void> _fetchSubjectNotes() async {
     setState(() {
       _isLoading = true;

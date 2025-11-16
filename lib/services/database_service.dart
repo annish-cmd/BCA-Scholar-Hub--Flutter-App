@@ -4,6 +4,7 @@ import 'package:logger/logger.dart';
 import '../models/youtube_video.dart';
 import '../models/firebase_note.dart';
 import '../models/notification.dart' as app_notification;
+import 'dart:async';
 
 class DatabaseService {
   final Logger _logger = Logger();
@@ -230,27 +231,22 @@ class DatabaseService {
       if (user != null) {
         _logger.d('User is authenticated, trying to access uploads');
 
-        // Try using onValue stream which might work better with permissions
-        await _uploadsRef.onValue.first
-            .timeout(const Duration(seconds: 5))
-            .then((event) {
-              if (event.snapshot.exists && event.snapshot.value != null) {
-                final data = event.snapshot.value as Map<dynamic, dynamic>;
+        // Force fresh data by using get() method
+        final snapshot = await _uploadsRef.get();
+        
+        if (snapshot.exists && snapshot.value != null) {
+          final data = snapshot.value as Map<dynamic, dynamic>;
 
-                data.forEach((key, value) {
-                  if (value is Map && value['type'] == 'extra_course') {
-                    notes.add(FirebaseNote.fromMap(key.toString(), value));
-                  }
-                });
+          data.forEach((key, value) {
+            if (value is Map && value['type'] == 'extra_course') {
+              notes.add(FirebaseNote.fromMap(key.toString(), value));
+            }
+          });
 
-                _logger.i(
-                  'Retrieved ${notes.length} extra course notes via stream',
-                );
-              }
-            })
-            .catchError((e) {
-              _logger.w('Error accessing notes via stream: $e');
-            });
+          _logger.i(
+            'Retrieved ${notes.length} extra course notes from server',
+          );
+        }
       }
 
       // Sort notes by timestamp (newest first)
@@ -280,40 +276,39 @@ class DatabaseService {
         // Normalize semester format to handle different formats like "1st" vs "First"
         String normalizedSemester = _normalizeSemester(semester);
 
-        // Try using onValue stream which might work better with permissions
-        await _uploadsRef.onValue.first
-            .timeout(const Duration(seconds: 10))
-            .then((event) {
-              if (event.snapshot.exists && event.snapshot.value != null) {
-                final data = event.snapshot.value as Map<dynamic, dynamic>;
+        // Force fresh data by disabling persistence temporarily
+        // This ensures we get the latest data from the server
+        final DatabaseReference ref = _uploadsRef;
+        
+        // Use get() method to force fetch from server instead of cache
+        final snapshot = await ref.get();
+        
+        if (snapshot.exists && snapshot.value != null) {
+          final data = snapshot.value as Map<dynamic, dynamic>;
 
-                // Clear the notes list first to avoid duplications
-                notes.clear();
+          // Clear the notes list first to avoid duplications
+          notes.clear();
 
-                data.forEach((key, value) {
-                  if (value is Map) {
-                    String noteSemester = _normalizeSemester(
-                      value['semester'] ?? '',
-                    );
+          data.forEach((key, value) {
+            if (value is Map) {
+              String noteSemester = _normalizeSemester(
+                value['semester'] ?? '',
+              );
 
-                    // Exact match for semester
-                    if (noteSemester == normalizedSemester) {
-                      notes.add(FirebaseNote.fromMap(key.toString(), value));
-                      _logger.d(
-                        'Added note: ${value['title']} for semester $normalizedSemester',
-                      );
-                    }
-                  }
-                });
-
-                _logger.i(
-                  'Retrieved ${notes.length} notes for semester $semester via stream',
+              // Exact match for semester
+              if (noteSemester == normalizedSemester) {
+                notes.add(FirebaseNote.fromMap(key.toString(), value));
+                _logger.d(
+                  'Added note: ${value['title']} for semester $normalizedSemester',
                 );
               }
-            })
-            .catchError((e) {
-              _logger.w('Error accessing notes via stream: $e');
-            });
+            }
+          });
+
+          _logger.i(
+            'Retrieved ${notes.length} notes for semester $semester from server',
+          );
+        }
       }
 
       // Sort notes by timestamp (newest first)
@@ -365,6 +360,8 @@ class DatabaseService {
     String subject,
   ) async {
     _logger.d('Fetching notes for semester: $semester, subject: $subject');
+    
+    // Force refresh the semester notes to get latest data
     List<FirebaseNote> allSemesterNotes = await getSemesterNotes(semester);
 
     // Filter notes by subject (category)
