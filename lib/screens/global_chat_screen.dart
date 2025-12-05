@@ -725,25 +725,12 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                                       ),
                                       decoration: BoxDecoration(
                                         color:
-                                            message.isAdmin
-                                                ? (isDarkMode
-                                                    ? Colors.orange[800]
-                                                    : Colors.orange[100])
-                                                : (isCurrentUser
-                                                    ? Colors.blue[700]
-                                                    : (isDarkMode
-                                                        ? const Color(
-                                                          0xFF2D2D2D,
-                                                        )
-                                                        : Colors.grey[200])),
+                                            isCurrentUser
+                                                ? Colors.blue[700]
+                                                : (isDarkMode
+                                                    ? const Color(0xFF2D2D2D)
+                                                    : Colors.grey[200]),
                                         borderRadius: BorderRadius.circular(16),
-                                        border:
-                                            message.isAdmin
-                                                ? Border.all(
-                                                  color: Colors.orange[600]!,
-                                                  width: 2,
-                                                )
-                                                : null,
                                         boxShadow: [
                                           BoxShadow(
                                             color: Colors.black.withOpacity(
@@ -784,36 +771,6 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                                                             FontWeight.bold,
                                                       ),
                                                     ),
-                                                    if (message.isAdmin)
-                                                      Container(
-                                                        margin:
-                                                            const EdgeInsets.only(
-                                                              left: 6,
-                                                            ),
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              horizontal: 6,
-                                                              vertical: 2,
-                                                            ),
-                                                        decoration: BoxDecoration(
-                                                          color:
-                                                              Colors
-                                                                  .orange[700],
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                8,
-                                                              ),
-                                                        ),
-                                                        child: Text(
-                                                          'ADMIN',
-                                                          style: TextStyle(
-                                                            color: Colors.white,
-                                                            fontSize: 10,
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                          ),
-                                                        ),
-                                                      ),
                                                   ],
                                                 ),
                                               ),

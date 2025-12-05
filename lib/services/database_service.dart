@@ -66,17 +66,42 @@ class DatabaseService {
     try {
       _logger.d('Saving user data for: ${user.uid}');
 
-      // Create user data map
-      final userData = {
-        'uid': user.uid,
-        'email': user.email,
-        'displayName': name ?? user.displayName ?? 'User',
-        'lastLogin': ServerValue.timestamp,
-      };
+      // Check if user already exists in the database
+      final userSnapshot = await _usersRef.child(user.uid).get();
 
-      // Save to database at users/{uid}
-      await _usersRef.child(user.uid).update(userData);
-      _logger.i('User data saved successfully for: ${user.uid}');
+      if (!userSnapshot.exists) {
+        // NEW USER - set createdAt along with other fields
+        _logger.d('Creating new user record for: ${user.uid}');
+        final newUserData = {
+          'uid': user.uid,
+          'email': user.email,
+          'displayName': name ?? user.displayName ?? 'User',
+          'status': 'Active',
+          'role': 'User',
+          'createdAt': DateTime.now().millisecondsSinceEpoch,
+          'lastLogin': DateTime.now().millisecondsSinceEpoch,
+        };
+
+        // Use set() for new users to create complete record
+        await _usersRef.child(user.uid).set(newUserData);
+        _logger.i('New user data created successfully for: ${user.uid}');
+      } else {
+        // EXISTING USER - only update lastLogin, don't overwrite createdAt
+        _logger.d('Updating existing user record for: ${user.uid}');
+        final updateData = {
+          'lastLogin': DateTime.now().millisecondsSinceEpoch,
+          'status': 'Active',
+        };
+
+        // Also update displayName if provided
+        if (name != null) {
+          updateData['displayName'] = name;
+        }
+
+        // Use update() for existing users to preserve createdAt
+        await _usersRef.child(user.uid).update(updateData);
+        _logger.i('User data updated successfully for: ${user.uid}');
+      }
     } catch (e) {
       _logger.e('Error saving user data:', error: e);
       // Don't throw the error to prevent disrupting the auth flow
@@ -233,7 +258,7 @@ class DatabaseService {
 
         // Force fresh data by using get() method
         final snapshot = await _uploadsRef.get();
-        
+
         if (snapshot.exists && snapshot.value != null) {
           final data = snapshot.value as Map<dynamic, dynamic>;
 
@@ -243,9 +268,7 @@ class DatabaseService {
             }
           });
 
-          _logger.i(
-            'Retrieved ${notes.length} extra course notes from server',
-          );
+          _logger.i('Retrieved ${notes.length} extra course notes from server');
         }
       }
 
@@ -279,10 +302,10 @@ class DatabaseService {
         // Force fresh data by disabling persistence temporarily
         // This ensures we get the latest data from the server
         final DatabaseReference ref = _uploadsRef;
-        
+
         // Use get() method to force fetch from server instead of cache
         final snapshot = await ref.get();
-        
+
         if (snapshot.exists && snapshot.value != null) {
           final data = snapshot.value as Map<dynamic, dynamic>;
 
@@ -291,9 +314,7 @@ class DatabaseService {
 
           data.forEach((key, value) {
             if (value is Map) {
-              String noteSemester = _normalizeSemester(
-                value['semester'] ?? '',
-              );
+              String noteSemester = _normalizeSemester(value['semester'] ?? '');
 
               // Exact match for semester
               if (noteSemester == normalizedSemester) {
@@ -360,7 +381,7 @@ class DatabaseService {
     String subject,
   ) async {
     _logger.d('Fetching notes for semester: $semester, subject: $subject');
-    
+
     // Force refresh the semester notes to get latest data
     List<FirebaseNote> allSemesterNotes = await getSemesterNotes(semester);
 
