@@ -4,6 +4,7 @@ import 'package:logger/logger.dart';
 import '../utils/theme_provider.dart';
 import '../utils/app_localizations.dart';
 import '../utils/auth_provider.dart';
+import '../utils/user_profile_cache.dart'; // Add this import
 import '../main.dart';
 import 'settings_page.dart';
 import 'about_page.dart';
@@ -22,6 +23,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final DatabaseService _databaseService = DatabaseService();
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
+  bool _isUsingCache = false; // Track if we're using cached data
   final _logger = Logger();
 
   @override
@@ -38,22 +40,22 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (authProvider.isLoggedIn && authProvider.currentUser != null) {
       try {
-        final userData = await _databaseService.getUserData(
-          authProvider.currentUser!.uid,
-        );
-
-        if (mounted) {
-          setState(() {
-            _userData = userData;
-            _isLoading = false;
-          });
-        }
-
-        // If we successfully loaded user data, don't show connection error
-        if (userData != null) {
-          showConnectionError = false;
+        // First, try to get data from cache
+        final cachedData = await UserProfileCache.getUserProfile();
+        if (cachedData != null) {
+          if (mounted) {
+            setState(() {
+              _userData = cachedData;
+              _isLoading = false;
+              _isUsingCache = true;
+            });
+          }
+          
+          // Load fresh data in background for cache update
+          _loadFreshUserData(authProvider);
         } else {
-          showConnectionError = true;
+          // No cache available, load fresh data
+          await _loadFreshUserData(authProvider);
         }
       } catch (e) {
         _logger.e('Error loading user data: $e');
@@ -83,6 +85,51 @@ class _ProfilePageState extends State<ProfilePage> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  // Load fresh user data from database and update cache
+  Future<void> _loadFreshUserData(AuthProvider authProvider) async {
+    try {
+      final userData = await _databaseService.getUserData(
+        authProvider.currentUser!.uid,
+      );
+
+      if (userData != null) {
+        // Save to cache for future use
+        await UserProfileCache.saveUserProfile(userData);
+      }
+
+      if (mounted) {
+        setState(() {
+          _userData = userData;
+          _isLoading = false;
+          _isUsingCache = false;
+        });
+      }
+
+      // If we successfully loaded user data, don't show connection error
+      // If we couldn't load fresh data but had cache, keep using cache
+    } catch (e) {
+      _logger.e('Error loading fresh user data: $e');
+      // If we have cached data, continue using it
+      // If we don't have cached data, show error
+      if (_userData == null) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Failed to refresh profile data. Showing cached information.',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
     }
   }
 
@@ -385,6 +432,9 @@ class _ProfilePageState extends State<ProfilePage> {
                       listen: false,
                     );
                     await authProvider.logout(clearRememberMe: forgetCredentials);
+
+                    // Clear user profile cache on logout
+                    await UserProfileCache.clearCache();
 
                     // Navigate back to login screen
                     if (context.mounted) {

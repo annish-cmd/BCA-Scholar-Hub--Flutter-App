@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import '../services/database_service.dart';
 import '../services/chat_service.dart';
 import '../services/storage_service.dart';
+import './user_profile_cache.dart'; // Add this import
 
 class AuthProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -307,6 +308,9 @@ class AuthProvider with ChangeNotifier {
         await _storageService.clearSavedCredentials();
         _logger.i('Remember me credentials cleared');
       }
+      
+      // Clear user profile cache on logout
+      await UserProfileCache.clearCache();
       
       // Sign out from Firebase
       await _auth.signOut();
