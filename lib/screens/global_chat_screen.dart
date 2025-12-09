@@ -29,11 +29,7 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
   ChatMessage? _replyingToMessage;
   final Logger _logger = Logger();
 
-  // Optimization: Reduce rebuild frequency
-  bool _hasUpdatesScheduled = false;
-  bool _isScrolling = false;
-  DateTime? _lastScrollTime;
-  bool _isSendingMessage = false; // Flag to prevent UI updates during sending
+  bool _isSendingMessage = false; // Flag to prevent duplicate message sends
 
   @override
   void initState() {
@@ -49,152 +45,93 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
     _loadMessagesImmediately();
   }
 
-  // Load messages with high priority and force encryption
+  // Load messages instantly
   Future<void> _loadMessagesImmediately() async {
     try {
-      // Force encryption initialization immediately
-      await _chatService.checkAndInitializeEncryption();
-
-      // Use the optimized cached messages method
+      // Get cached messages for instant display
       final cachedMessages = await _chatService.getCachedMessages();
 
-      if (mounted) {
+      if (mounted && cachedMessages.isNotEmpty) {
         setState(() {
-          if (cachedMessages.isNotEmpty) {
-            _messages = cachedMessages;
-            _isLoading = false;
+          _messages = cachedMessages;
+          _isLoading = false;
+        });
+
+        // Instant scroll to bottom
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
           }
         });
-
-        // Scroll to bottom after cached messages are loaded
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _scrollToBottomSmooth();
-        });
       }
 
-      // Now set up the real-time listener for new messages
+      // Set up real-time listener
       _setupMessageListener();
 
-      // Check encryption status in parallel
+      // Initialize encryption in background
       _checkEncryptionStatus();
-
-      // Force decryption of any remaining encrypted messages without clearing cache
-      if (mounted && _chatService.isEncryptionInitialized) {
-        await _chatService.checkAndInitializeEncryption();
-      }
-
-      // Set up periodic refresh to ensure all messages are decrypted
-      _setupPeriodicDecryptionCheck();
-
-      // Clear any existing error messages
-      _errorMessage = '';
     } catch (e) {
-      _logger.e('Error in _loadMessagesImmediately: $e');
-
-      // Even if this fails, still set up the message listener
+      _logger.e('Load error: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
       _setupMessageListener();
       _checkEncryptionStatus();
-      _setupPeriodicDecryptionCheck();
     }
   }
 
-  // Periodically check if any messages need decryption
-  void _setupPeriodicDecryptionCheck() {
-    // Check every 2 seconds for encrypted messages
-    Timer.periodic(const Duration(seconds: 2), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
 
-      // Check if any messages are still showing as encrypted
-      bool hasEncryptedMessages = _messages.any(
-        (msg) =>
-            msg.isEncrypted &&
-            (msg.text.isEmpty || msg.text == '🔒 Encrypted message'),
-      );
 
-      if (hasEncryptedMessages && _chatService.isEncryptionInitialized) {
-        _logger.i('Found encrypted messages, forcing refresh...');
-        _chatService.refreshMessages();
-      }
-
-      // Cancel timer after 30 seconds to save resources
-      if (timer.tick > 15) {
-        timer.cancel();
-      }
-    });
-  }
-
-  // Set up real-time listener for message updates with instant response
+  // Real-time message listener with instant updates
   void _setupMessageListener() {
     _chatService.getMessagesStream().listen(
       (messages) {
-        if (mounted) {
-          // Skip update check for instant response
-          final bool shouldScrollToBottom =
-              _scrollController.hasClients &&
-              (_scrollController.position.maxScrollExtent -
-                      _scrollController.offset) <
-                  200;
+        if (!mounted) return;
+        
+        final shouldScroll = _scrollController.hasClients &&
+            (_scrollController.position.maxScrollExtent - _scrollController.offset) < 200;
+        
+        final hasNewMessages = messages.length > _messages.length;
 
-          final bool hasNewMessages = messages.length > _messages.length;
+        setState(() {
+          _messages = messages;
+          _isLoading = false;
+        });
 
-          // Instant state update - no delay
-          setState(() {
-            _messages = messages;
-            _isLoading = false;
-            _hasUpdatesScheduled = false;
-          });
-
-          // Instant auto-scroll for new messages
-          if (shouldScrollToBottom && !_isScrolling && hasNewMessages) {
-            // Immediate scroll with no delay
+        // Auto-scroll for new messages
+        if (shouldScroll && hasNewMessages) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
             if (_scrollController.hasClients) {
               _scrollController.animateTo(
                 _scrollController.position.maxScrollExtent,
-                duration: const Duration(milliseconds: 100),
+                duration: const Duration(milliseconds: 150),
                 curve: Curves.easeOut,
               );
             }
-          }
+          });
         }
       },
       onError: (error) {
         if (mounted) {
+          _logger.e('Stream error: $error');
           setState(() {
-            _errorMessage = 'Error loading messages. Please try again.';
+            _errorMessage = 'Connection error. Retrying...';
             _isLoading = false;
           });
-          _logger.e('Error in message stream: $error');
         }
       },
     );
   }
 
-  // Check encryption status and force decryption
-  void _checkEncryptionStatus() async {
-    _isEncryptionInitialized = _chatService.isEncryptionInitialized;
-
-    // Always try to initialize and decrypt messages
-    try {
-      await _chatService.checkAndInitializeEncryption();
-
+  // Check encryption status (non-blocking)
+  void _checkEncryptionStatus() {
+    _chatService.checkAndInitializeEncryption().then((_) {
       if (mounted) {
-        setState(() {
-          _isEncryptionInitialized = _chatService.isEncryptionInitialized;
-        });
-
-        // Force decrypt without clearing cache
-        _chatService.checkAndInitializeEncryption();
+        _isEncryptionInitialized = _chatService.isEncryptionInitialized;
       }
-    } catch (e) {
-      _logger.e('Error initializing encryption: $e');
-    }
-
-    if (mounted) {
-      setState(() {});
-    }
+    }).catchError((e) {
+      _logger.e('Encryption error: $e');
+    });
   }
 
   @override
@@ -204,31 +141,10 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
     super.dispose();
   }
 
-  // Optimized scroll to bottom with throttling
+  // Instant scroll to bottom
   void _scrollToBottomSmooth() {
-    final now = DateTime.now();
-    if (_lastScrollTime != null &&
-        now.difference(_lastScrollTime!) < const Duration(milliseconds: 200)) {
-      return; // Throttle scroll operations
-    }
-
-    _lastScrollTime = now;
-
-    if (_scrollController.hasClients && !_isScrolling) {
-      _isScrolling = true;
-      _scrollController
-          .animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 250), // Slightly faster
-            curve: Curves.easeOutCubic, // Smoother curve
-          )
-          .then((_) {
-            _isScrolling = false;
-          })
-          .catchError((e) {
-            _isScrolling = false;
-            _logger.w('Scroll animation error: $e');
-          });
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
     }
   }
 
@@ -244,73 +160,68 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
 
   // Send message - clean approach without temporary messages
   Future<void> _sendMessage() async {
-    if (_messageController.text.trim().isNotEmpty && !_isSendingMessage) {
-      final messageText = _messageController.text.trim();
-      final user = firebase_auth.FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+    // CRITICAL: Check if already sending at the very start
+    if (_isSendingMessage) {
+      _logger.w('Message send already in progress, ignoring duplicate request');
+      return;
+    }
 
-      final replyToId = _replyingToMessage?.id;
-      final replyToUserName = _replyingToMessage?.userName;
-      final replyToText = _replyingToMessage?.text;
+    if (_messageController.text.trim().isEmpty) {
+      return;
+    }
 
-      // Clear input and reply state immediately
-      _messageController.clear();
-      setState(() {
-        if (_replyingToMessage != null) {
-          _replyingToMessage = null;
-        }
-      });
+    final messageText = _messageController.text.trim();
+    final user = firebase_auth.FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-      // Mark as sending to prevent duplicate sends
+    final replyToId = _replyingToMessage?.id;
+
+    // Mark as sending IMMEDIATELY to prevent duplicate sends
+    setState(() {
       _isSendingMessage = true;
+    });
 
-      try {
-        // Initialize encryption if needed (without UI updates)
-        if (!_isEncryptionInitialized) {
-          await _chatService.checkAndInitializeEncryption();
-          _isEncryptionInitialized = _chatService.isEncryptionInitialized;
-        }
+    // Clear input and reply state immediately
+    _messageController.clear();
+    if (_replyingToMessage != null) {
+      setState(() {
+        _replyingToMessage = null;
+      });
+    }
 
-        // Send message to Firebase
-        final success = await _chatService.sendMessage(
-          messageText,
-          replyToId: replyToId,
+    try {
+      // Send message to Firebase (encryption handled by service)
+      final success = await _chatService.sendMessage(
+        messageText,
+        replyToId: replyToId,
+      );
+
+      if (!success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to send message. Please try again.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
         );
-
-        if (!success) {
-          // Show error message
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Failed to send message. Please try again.'),
-                backgroundColor: Colors.red,
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
-        } else {
-          // Success - immediate scroll for faster UX
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted && _scrollController.hasClients) {
-              _scrollController.animateTo(
-                _scrollController.position.maxScrollExtent,
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOut,
-              );
-            }
-          });
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error sending message: ${e.toString()}'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-      } finally {
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sending message: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      // Always reset the flag
+      if (mounted) {
+        setState(() {
+          _isSendingMessage = false;
+        });
+      } else {
         _isSendingMessage = false;
       }
     }
@@ -636,287 +547,254 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                 ),
               ),
 
-            // Chat messages
+            // Chat messages with optimized rendering
             Expanded(
-              child:
-                  _isLoading
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _combinedMessages.isEmpty
                       ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(height: 16),
-                            Text(
-                              "Loading messages...",
-                              style: TextStyle(
-                                color:
-                                    isDarkMode
-                                        ? Colors.grey[300]
-                                        : Colors.grey[700],
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.chat_bubble_outline,
+                                size: 48,
+                                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
                               ),
-                            ),
-                          ],
-                        ),
-                      )
-                      : _combinedMessages.isEmpty
-                      ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.chat_bubble_outline,
-                              size: 48,
-                              color:
-                                  isDarkMode
-                                      ? Colors.grey[400]
-                                      : Colors.grey[600],
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              _errorMessage.isNotEmpty
-                                  ? _errorMessage
-                                  : 'No messages yet.\nStart the conversation!',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color:
-                                    isDarkMode
-                                        ? Colors.grey[400]
-                                        : Colors.grey[600],
-                                fontSize: 16,
+                              const SizedBox(height: 16),
+                              Text(
+                                'No messages yet.\nStart the conversation!',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                                  fontSize: 16,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      )
+                            ],
+                          ),
+                        )
                       : Stack(
-                        children: [
-                          ListView.builder(
-                            controller: _scrollController,
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _combinedMessages.length,
-                            // Performance optimizations
-                            addAutomaticKeepAlives:
-                                false, // Don't keep offscreen widgets alive
-                            addRepaintBoundaries: true, // Isolate repaints
-                            cacheExtent: 500, // Cache only nearby items
-                            itemBuilder: (context, index) {
-                              final message = _combinedMessages[index];
-                              final isCurrentUser =
-                                  message.userId ==
-                                  authProvider.currentUser?.uid;
+                          children: [
+                            ListView.builder(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.all(16),
+                              itemCount: _combinedMessages.length,
+                              // Professional optimization
+                              addAutomaticKeepAlives: false,
+                              addRepaintBoundaries: true,
+                              cacheExtent: 1000,
+                              physics: const ClampingScrollPhysics(),
+                              itemBuilder: (context, index) {
+                                final message = _combinedMessages[index];
+                                final isCurrentUser = message.userId == authProvider.currentUser?.uid;
 
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                child: GestureDetector(
-                                  onLongPress: () {
-                                    _showMessageOptions(context, message);
-                                  },
-                                  child: Align(
-                                    alignment:
-                                        isCurrentUser
+                                // Wrap in RepaintBoundary for better performance
+                                return RepaintBoundary(
+                                  child: Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    child: GestureDetector(
+                                      onLongPress: () => _showMessageOptions(context, message),
+                                      child: Align(
+                                        alignment: isCurrentUser
                                             ? Alignment.centerRight
                                             : Alignment.centerLeft,
-                                    child: Container(
-                                      margin: const EdgeInsets.only(bottom: 4),
-                                      constraints: BoxConstraints(
-                                        maxWidth:
-                                            MediaQuery.of(context).size.width *
-                                            0.75,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color:
-                                            isCurrentUser
+                                        child: Container(
+                                          margin: const EdgeInsets.only(bottom: 4),
+                                          constraints: BoxConstraints(
+                                            maxWidth: MediaQuery.of(context).size.width * 0.75,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: isCurrentUser
                                                 ? Colors.blue[700]
                                                 : (isDarkMode
                                                     ? const Color(0xFF2D2D2D)
                                                     : Colors.grey[200]),
-                                        borderRadius: BorderRadius.circular(16),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(
-                                              0.05,
-                                            ),
-                                            blurRadius: 3,
-                                            offset: const Offset(0, 1),
+                                            borderRadius: BorderRadius.circular(16),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.05),
+                                                blurRadius: 3,
+                                                offset: const Offset(0, 1),
+                                              ),
+                                            ],
                                           ),
-                                        ],
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 10,
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          // Message header (username and time)
-                                          Row(
-                                            mainAxisSize: MainAxisSize.min,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 10,
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
-                                              Expanded(
-                                                child: Row(
-                                                  children: [
-                                                    Text(
-                                                      message.userName,
+                                              // Message header (username and time)
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Expanded(
+                                                    child: Row(
+                                                      children: [
+                                                        Text(
+                                                          message.userName,
+                                                          style: TextStyle(
+                                                            color:
+                                                                isCurrentUser
+                                                                    ? Colors.white
+                                                                    : (isDarkMode
+                                                                        ? Colors
+                                                                            .blue[200]
+                                                                        : Colors
+                                                                            .blue[700]),
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  Row(
+                                                    children: [
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        _formatTimestamp(
+                                                          message.timestamp,
+                                                        ),
+                                                        style: TextStyle(
+                                                          color:
+                                                              isCurrentUser
+                                                                  ? Colors.white70
+                                                                  : (isDarkMode
+                                                                      ? Colors
+                                                                          .grey[400]
+                                                                      : Colors
+                                                                          .grey[600]),
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+
+                                              // Show compact "Message from before you joined" for blank encrypted messages
+                                              if (message.isEncrypted &&
+                                                  message.text.isEmpty)
+                                                Padding(
+                                                  padding: const EdgeInsets.only(
+                                                    top: 2,
+                                                  ),
+                                                  child: Text(
+                                                    "🔒✨ Message from before you joined",
+                                                    style: TextStyle(
+                                                      fontStyle: FontStyle.italic,
+                                                      color:
+                                                          isCurrentUser
+                                                              ? Colors.white60
+                                                              : (isDarkMode
+                                                                  ? Colors.grey[500]
+                                                                  : Colors
+                                                                      .grey[500]),
+                                                      fontSize: 11,
+                                                    ),
+                                                  ),
+                                                ),
+
+                                              // Reply indicator if this is a reply
+                                              if (message.replyToId != null)
+                                                Container(
+                                                  margin: const EdgeInsets.only(
+                                                    top: 5,
+                                                    bottom: 5,
+                                                  ),
+                                                  padding: const EdgeInsets.all(8),
+                                                  decoration: BoxDecoration(
+                                                    color:
+                                                        isCurrentUser
+                                                            ? Colors.blue[800]
+                                                            : (isDarkMode
+                                                                ? const Color(
+                                                                  0xFF3D3D3D,
+                                                                )
+                                                                : Colors.grey[300]),
+                                                    borderRadius:
+                                                        BorderRadius.circular(8),
+                                                  ),
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(
+                                                        'Reply to ${message.replyToUserName}',
+                                                        style: TextStyle(
+                                                          fontSize: 12,
+                                                          fontStyle:
+                                                              FontStyle.italic,
+                                                          color:
+                                                              isCurrentUser
+                                                                  ? Colors.white70
+                                                                  : (isDarkMode
+                                                                      ? Colors
+                                                                          .grey[400]
+                                                                      : Colors
+                                                                          .grey[600]),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 2),
+                                                      Text(
+                                                        message.replyToText !=
+                                                                    null &&
+                                                                message
+                                                                        .replyToText!
+                                                                        .length >
+                                                                    50
+                                                            ? '${message.replyToText!.substring(0, 50)}...'
+                                                            : message.replyToText ??
+                                                                '',
+                                                        style: TextStyle(
+                                                          fontSize: 13,
+                                                          color:
+                                                              isCurrentUser
+                                                                  ? Colors.white70
+                                                                  : (isDarkMode
+                                                                      ? Colors
+                                                                          .grey[300]
+                                                                      : Colors
+                                                                          .grey[800]),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+
+                                              const SizedBox(height: 5),
+                                              // Message text (without the extra lock icon)
+                                              Row(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  // Removed the lock icon that was showing on the left side
+                                                  Expanded(
+                                                    child: Text(
+                                                      // Smart message display logic
+                                                      message.text.isNotEmpty
+                                                          ? message.text
+                                                          : '', // Always empty for messages without text
                                                       style: TextStyle(
                                                         color:
                                                             isCurrentUser
                                                                 ? Colors.white
-                                                                : (isDarkMode
-                                                                    ? Colors
-                                                                        .blue[200]
-                                                                    : Colors
-                                                                        .blue[700]),
-                                                        fontWeight:
-                                                            FontWeight.bold,
+                                                                : textColor,
                                                       ),
                                                     ),
-                                                  ],
-                                                ),
-                                              ),
-                                              Row(
-                                                children: [
-                                                  const SizedBox(width: 4),
-                                                  Text(
-                                                    _formatTimestamp(
-                                                      message.timestamp,
-                                                    ),
-                                                    style: TextStyle(
-                                                      color:
-                                                          isCurrentUser
-                                                              ? Colors.white70
-                                                              : (isDarkMode
-                                                                  ? Colors
-                                                                      .grey[400]
-                                                                  : Colors
-                                                                      .grey[600]),
-                                                      fontSize: 12,
-                                                    ),
                                                   ),
                                                 ],
                                               ),
                                             ],
                                           ),
-
-                                          // Show compact "Message from before you joined" for blank encrypted messages
-                                          if (message.isEncrypted &&
-                                              message.text.isEmpty)
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                top: 2,
-                                              ),
-                                              child: Text(
-                                                "🔒✨ Message from before you joined",
-                                                style: TextStyle(
-                                                  fontStyle: FontStyle.italic,
-                                                  color:
-                                                      isCurrentUser
-                                                          ? Colors.white60
-                                                          : (isDarkMode
-                                                              ? Colors.grey[500]
-                                                              : Colors
-                                                                  .grey[500]),
-                                                  fontSize: 11,
-                                                ),
-                                              ),
-                                            ),
-
-                                          // Reply indicator if this is a reply
-                                          if (message.replyToId != null)
-                                            Container(
-                                              margin: const EdgeInsets.only(
-                                                top: 5,
-                                                bottom: 5,
-                                              ),
-                                              padding: const EdgeInsets.all(8),
-                                              decoration: BoxDecoration(
-                                                color:
-                                                    isCurrentUser
-                                                        ? Colors.blue[800]
-                                                        : (isDarkMode
-                                                            ? const Color(
-                                                              0xFF3D3D3D,
-                                                            )
-                                                            : Colors.grey[300]),
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                              ),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    'Reply to ${message.replyToUserName}',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      fontStyle:
-                                                          FontStyle.italic,
-                                                      color:
-                                                          isCurrentUser
-                                                              ? Colors.white70
-                                                              : (isDarkMode
-                                                                  ? Colors
-                                                                      .grey[400]
-                                                                  : Colors
-                                                                      .grey[600]),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    message.replyToText !=
-                                                                null &&
-                                                            message
-                                                                    .replyToText!
-                                                                    .length >
-                                                                50
-                                                        ? '${message.replyToText!.substring(0, 50)}...'
-                                                        : message.replyToText ??
-                                                            '',
-                                                    style: TextStyle(
-                                                      fontSize: 13,
-                                                      color:
-                                                          isCurrentUser
-                                                              ? Colors.white70
-                                                              : (isDarkMode
-                                                                  ? Colors
-                                                                      .grey[300]
-                                                                  : Colors
-                                                                      .grey[800]),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-
-                                          const SizedBox(height: 5),
-                                          // Message text (without the extra lock icon)
-                                          Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              // Removed the lock icon that was showing on the left side
-                                              Expanded(
-                                                child: Text(
-                                                  // Smart message display logic
-                                                  message.text.isNotEmpty
-                                                      ? message.text
-                                                      : '', // Always empty for messages without text
-                                                  style: TextStyle(
-                                                    color:
-                                                        isCurrentUser
-                                                            ? Colors.white
-                                                            : textColor,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              );
+                                );
                             },
                           ),
 
