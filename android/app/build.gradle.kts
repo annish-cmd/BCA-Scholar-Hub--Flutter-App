@@ -30,10 +30,10 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         
-        // Configure NDK to only package arm64-v8a native libraries
-        ndk {
-            abiFilters.add("arm64-v8a")
-        }
+        // Removed NDK filters to allow APK splitting for lighter builds
+        // ndk {
+        //     abiFilters.add("arm64-v8a")
+        // }
     }
 
     buildTypes {
@@ -41,13 +41,9 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
-            // Enable shrinking, obfuscation, and optimization
-            isShrinkResources = true
-            isMinifyEnabled = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            // Disable shrinking, obfuscation, and optimization to prevent issues with lightweight APK
+            isShrinkResources = false
+            isMinifyEnabled = false
         }
     }
 }
