@@ -61,9 +61,21 @@ class _AIChatScreenState extends State<AIChatScreen>
       }
     }
 
-    // All keys are exhausted
-    debugPrint('All API keys are exhausted');
-    return false;
+    // All keys are currently marked as exhausted
+    // This could happen if:
+    // 1. All keys have genuinely hit their rate limits
+    // 2. There might be a temporary network issue
+    // 3. The daily quota may have reset
+    
+    // Let's try to reset and cycle through all keys again
+    // This handles the case where the daily quota may have reset or it was a temporary issue
+    debugPrint('All API keys are marked as exhausted. Attempting to reset and retry.');
+    _resetApiKeyStatus();
+    
+    // Now try to use the first key again
+    _currentApiKeyIndex = 0;
+    debugPrint('Reset API keys and trying with key 1 again');
+    return true;
   }
 
   // Reset API key status (for testing)
@@ -73,6 +85,18 @@ class _AIChatScreenState extends State<AIChatScreen>
     }
     _currentApiKeyIndex = 0;
     debugPrint('All API keys reset');
+    
+    // Show a snackbar to inform the user that keys have been reset
+    if (mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("API connection refreshed. Ready to assist you again!"),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      });
+    }
   }
 
   @override
@@ -384,21 +408,22 @@ class _AIChatScreenState extends State<AIChatScreen>
       } else if (response.statusCode == 429) {
         // Rate limit exceeded - try switching to another API key
         debugPrint(
-          'Rate limit exceeded for API key ${_currentApiKeyIndex + 1}',
+          'API key ${_currentApiKeyIndex + 1} exhausted (status: 429)',
         );
 
         if (_switchToNextApiKey()) {
           // Successfully switched to another key, retry the request
+          debugPrint('Switched to API key ${_currentApiKeyIndex + 1}');
           debugPrint('Retrying with new API key ${_currentApiKeyIndex + 1}');
           _callAPI(userMessage);
           return;
         } else {
-          // All API keys are exhausted
+          // This shouldn't happen anymore with our improved logic, but just in case
           setState(() {
             _messages.add(
               ChatMessage(
                 text:
-                    "I've reached my daily usage limit for all available API keys. The OpenRouter free tier allows 50 requests per day per key (${_apiKeys.length * 50} total requests with our ${_apiKeys.length} keys). Please try again tomorrow or consider upgrading to a paid plan for more requests.",
+                    "I've temporarily reached my usage limit. Please wait a moment and try again.",
                 isUser: false,
               ),
             );
@@ -429,7 +454,10 @@ class _AIChatScreenState extends State<AIChatScreen>
     if (_retryCount < _maxRetries) {
       _retryCount++;
       debugPrint('Retrying API call, attempt $_retryCount of $_maxRetries');
-      _callAPI(userMessage);
+      // Add a small delay before retrying to avoid overwhelming the API
+      Future.delayed(const Duration(seconds: 1), () {
+        _callAPI(userMessage);
+      });
     } else {
       // Reset retry count
       _retryCount = 0;

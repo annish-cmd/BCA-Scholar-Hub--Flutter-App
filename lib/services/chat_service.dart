@@ -28,6 +28,11 @@ class ChatService extends ChangeNotifier {
   // Batch decryption for faster processing
   bool _isBatchDecrypting = false;
   final List<ChatMessage> _decryptionQueue = [];
+  
+  // Connection state tracking
+  bool _isConnected = true;
+  int _retryCount = 0;
+  static const int _maxRetries = 3;
 
   // Stream controller for reactive message updates
   StreamController<List<ChatMessage>>? _messagesStreamController;
@@ -52,6 +57,14 @@ class ChatService extends ChangeNotifier {
         _initializeEverythingImmediately();
       }
     });
+  }
+
+  // Cleanup method for proper resource disposal
+  @override
+  void dispose() {
+    _firebaseStreamSubscription?.cancel();
+    _messagesStreamController?.close();
+    super.dispose();
   }
 
   // Initialize everything for fastest startup
@@ -102,31 +115,74 @@ class ChatService extends ChangeNotifier {
       _isEncryptionInitialized = true;
       _logger.i('Encryption initialized');
       
-      // Decrypt cached messages in background (non-blocking)
-      _batchDecryptMessages();
+      // CRITICAL FIX: Trigger batch decryption immediately after encryption is ready
+      _batchDecryptMessages().then((_) {
+        // Force stream refresh to update UI with decrypted messages
+        _refreshMessageStream();
+      });
     } catch (e) {
       _logger.e('Encryption init error: $e');
       _isEncryptionInitialized = false;
+      
+      // Retry after a short delay
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (!_isEncryptionInitialized) {
+          _checkEncryptionStatus();
+        }
+      });
     }
   }
 
   // Batch decrypt messages for faster processing
   Future<void> _batchDecryptMessages() async {
-    if (_isBatchDecrypting || !_isEncryptionInitialized) return;
+    if (_isBatchDecrypting || !_isEncryptionInitialized) {
+      // If encryption not ready, wait and retry
+      if (!_isEncryptionInitialized) {
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (_isEncryptionInitialized && !_isBatchDecrypting) {
+            _batchDecryptMessages();
+          }
+        });
+      }
+      return;
+    }
     
     _isBatchDecrypting = true;
     try {
       // Get all encrypted messages that need decryption
+      // Dynamic batch size based on message count for optimal performance
+      final totalEncrypted = _cachedMessages
+          .where((m) => m.isEncrypted && !_decryptedMessageCache.containsKey(m.id))
+          .length;
+      
+      final batchSize = totalEncrypted > 50 ? 20 : 10; // Larger batches for many messages
+      
       final toDecrypt = _cachedMessages
           .where((m) => m.isEncrypted && !_decryptedMessageCache.containsKey(m.id))
-          .take(10) // Process in batches of 10 for speed
+          .take(batchSize)
           .toList();
+
+      if (toDecrypt.isEmpty) {
+        return;
+      }
 
       // Decrypt in parallel for maximum speed
       await Future.wait(
         toDecrypt.map((msg) => _fastDecryptMessage(msg)),
         eagerError: false,
       );
+      
+      // Trigger stream refresh after decryption
+      _refreshMessageStream();
+      
+      // If there are more messages to decrypt, continue in next batch
+      if (toDecrypt.length == batchSize) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (!_isBatchDecrypting) _batchDecryptMessages();
+        });
+      }
+    } catch (e) {
+      _logger.e('Batch decryption error: $e');
     } finally {
       _isBatchDecrypting = false;
     }
@@ -134,7 +190,14 @@ class ChatService extends ChangeNotifier {
 
   // Public method to force check encryption status and decrypt messages
   Future<void> checkAndInitializeEncryption() async {
-    if (_isEncryptionInitialized) return; // Skip if already initialized
+    if (_isEncryptionInitialized) {
+      // Even if initialized, check if there are undecrypted messages
+      if (_cachedMessages.any((m) => m.isEncrypted && !_decryptedMessageCache.containsKey(m.id))) {
+        _batchDecryptMessages();
+      }
+      return;
+    }
+    
     await _checkEncryptionStatus();
   }
 
@@ -465,10 +528,17 @@ class ChatService extends ChangeNotifier {
     final now = DateTime.now().millisecondsSinceEpoch;
     final oneHour = 60 * 60 * 1000;
     
+    // Only cleanup if we have a significant number of cached items
+    if (_cacheTimestamps.length < 50) return;
+    
     final staleKeys = _cacheTimestamps.entries
         .where((entry) => (now - entry.value) > oneHour)
         .map((entry) => entry.key)
         .toList();
+    
+    if (staleKeys.isEmpty) return;
+    
+    _logger.i('Cleaning up ${staleKeys.length} stale cache entries');
     
     for (final key in staleKeys) {
       _decryptedMessageCache.remove(key);
@@ -846,13 +916,5 @@ class ChatService extends ChangeNotifier {
   void _immediateNotify() {
     _lastNotifyTime = DateTime.now();
     notifyListeners();
-  }
-
-  // Clean up resources
-  @override
-  void dispose() {
-    _firebaseStreamSubscription?.cancel();
-    _messagesStreamController?.close();
-    super.dispose();
   }
 }

@@ -30,6 +30,8 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
   final Logger _logger = Logger();
 
   bool _isSendingMessage = false; // Flag to prevent duplicate message sends
+  StreamSubscription<List<ChatMessage>>? _messageSubscription; // Stream subscription for cleanup
+  Timer? _scrollDebounce; // Debounce timer for smooth scrolling
 
   @override
   void initState() {
@@ -84,7 +86,10 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
 
   // Real-time message listener with instant updates
   void _setupMessageListener() {
-    _chatService.getMessagesStream().listen(
+    // Cancel existing subscription to prevent memory leaks
+    _messageSubscription?.cancel();
+    
+    _messageSubscription = _chatService.getMessagesStream().listen(
       (messages) {
         if (!mounted) return;
         
@@ -98,14 +103,15 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
           _isLoading = false;
         });
 
-        // Auto-scroll for new messages
+        // Smooth auto-scroll with debouncing for new messages
         if (shouldScroll && hasNewMessages) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (_scrollController.hasClients) {
+          _scrollDebounce?.cancel();
+          _scrollDebounce = Timer(const Duration(milliseconds: 50), () {
+            if (mounted && _scrollController.hasClients) {
               _scrollController.animateTo(
                 _scrollController.position.maxScrollExtent,
-                duration: const Duration(milliseconds: 150),
-                curve: Curves.easeOut,
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
               );
             }
           });
@@ -117,6 +123,13 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
           setState(() {
             _errorMessage = 'Connection error. Retrying...';
             _isLoading = false;
+          });
+          
+          // Auto-retry after error
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) {
+              _setupMessageListener();
+            }
           });
         }
       },
@@ -136,6 +149,9 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
 
   @override
   void dispose() {
+    // Clean up resources to prevent memory leaks
+    _messageSubscription?.cancel();
+    _scrollDebounce?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -207,11 +223,19 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
       }
     } catch (e) {
       if (mounted) {
+        _logger.e('Send error: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error sending message: ${e.toString()}'),
+            content: Text('Error: ${e.toString()}'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () {
+                _messageController.text = messageText;
+              },
+            ),
           ),
         );
       }
