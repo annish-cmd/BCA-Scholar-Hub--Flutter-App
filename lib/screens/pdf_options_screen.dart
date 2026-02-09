@@ -82,6 +82,17 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
       logger.i('📚 Original semester: "$currentSemester", Subject: "$currentSubject"');
       final stopwatch = Stopwatch()..start();
       
+      // If we don't have a Firebase note, try to find one based on the PdfNote
+      FirebaseNote? effectiveFirebaseNote = widget.firebaseNote;
+      String? effectiveSemester = currentSemester;
+      
+      if (effectiveFirebaseNote == null) {
+        logger.i('🔍 Need to find Firebase note for: ${widget.pdfNote.title}');
+        effectiveFirebaseNote = await _findFirebaseNote(widget.pdfNote);
+        effectiveSemester = effectiveFirebaseNote?.semester;
+        logger.i('🎯 Found Firebase note with semester: "$effectiveSemester"');
+      }
+      
       // Check if this is a hardcoded PDF - if so, show other hardcoded PDFs as recommendations
       if (_isHardcodedPdf(widget.pdfNote.title)) {
         logger.i('📋 Detected hardcoded PDF: ${widget.pdfNote.title}');
@@ -101,7 +112,7 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
         logger.i('📡 Fetching fresh data for favorites...');
         
         // Priority 1: Current semester + adjacent semesters (for speed)
-        final prioritySemesters = _getPrioritySemesters(currentSemester ?? '1st');
+        final prioritySemesters = _getPrioritySemesters(effectiveSemester ?? '1st');
         
         // Priority 2: Extra courses
         final futures = <Future<List<FirebaseNote>>>[];
@@ -137,21 +148,21 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
       }
       
       // Fast hybrid processing
-      if (allNotes.isNotEmpty && widget.firebaseNote != null) {
+      if (allNotes.isNotEmpty && effectiveFirebaseNote != null) {
         // Normalize the current semester - if empty/null, treat as extra course
-        String normalizedCurrentSemester = currentSemester ?? '';
+        String normalizedCurrentSemester = effectiveSemester ?? '';
         if (normalizedCurrentSemester.isEmpty || 
             normalizedCurrentSemester.toLowerCase().contains('extra') ||
             normalizedCurrentSemester == 'null') {
           normalizedCurrentSemester = 'extra';
         }
         
-        logger.i('🔧 Normalized semester: "$normalizedCurrentSemester" (from "$currentSemester")');
+        logger.i('🔧 Normalized semester: "$normalizedCurrentSemester" (from "$effectiveSemester")');
         
         final recommendations = _recommendationAlgorithm.getHybridRecommendations(
           allNotes: allNotes,
           currentUserSemester: normalizedCurrentSemester,
-          currentlyViewingNote: widget.firebaseNote,
+          currentlyViewingNote: effectiveFirebaseNote,
           maxSuggestions: 20, // Increased for more recommendations
         );
         
@@ -165,13 +176,13 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
             
             // Rule-based: Semester notes (up to 5) - exclude current note
             final filteredSemesterNotes = semesterRecommendations.where((note) {
-              return note.id != widget.firebaseNote?.id && note.title != widget.pdfNote.title;
+              return note.id != effectiveFirebaseNote?.id && note.title != widget.pdfNote.title;
             }).take(5);
             _semesterNotes.addAll(filteredSemesterNotes);
             
             // Content-based: Show ALL available notes in same category - exclude current note
             final filteredCategoryNotes = contentBasedRecommendations.where((note) {
-              return note.id != widget.firebaseNote?.id && note.title != widget.pdfNote.title;
+              return note.id != effectiveFirebaseNote?.id && note.title != widget.pdfNote.title;
             });
             _categoryNotes.addAll(filteredCategoryNotes); // No limit - show all
             
@@ -184,7 +195,7 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
         }
       } else {
         // Fast fallback
-        final quickRecommendations = _getQuickRecommendations(allNotes, currentSemester, currentSubject);
+        final quickRecommendations = _getQuickRecommendations(allNotes, effectiveSemester, currentSubject);
         
         if (mounted) {
           setState(() {
@@ -193,29 +204,87 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
             
             // Filter out current note from quick recommendations
             final filteredQuickRecs = quickRecommendations.where((note) {
-              return note.id != widget.firebaseNote?.id && note.title != widget.pdfNote.title;
+              return note.id != effectiveFirebaseNote?.id && note.title != widget.pdfNote.title;
             }).toList();
             
             _semesterNotes.addAll(filteredQuickRecs.take(5));
             _categoryNotes.addAll(filteredQuickRecs.skip(5)); // Show all remaining
+            
             _loadingRelated = false;
           });
           
           stopwatch.stop();
-          logger.i('⚡ Fast fallback completed in ${stopwatch.elapsedMilliseconds}ms');
+          logger.i('⚠️  Fallback loaded in ${stopwatch.elapsedMilliseconds}ms');
         }
       }
-      
-    } catch (e) {
-      logger.e('❌ Fast loading failed: $e');
-      
-      // Ultra-fast emergency fallback
+    } catch (e, stack) {
+      logger.e('❌ Error loading related notes', error: e, stackTrace: stack);
       if (mounted) {
         setState(() {
           _loadingRelated = false;
         });
       }
     }
+  }
+
+  // Helper method to find FirebaseNote based on PdfNote
+  Future<FirebaseNote?> _findFirebaseNote(PdfNote pdfNote) async {
+    try {
+      logger.i('🔍 Searching for Firebase note matching: ${pdfNote.title}');
+      
+      // Get all notes from all semesters and extra courses in parallel
+      final futures = <Future<List<FirebaseNote>>>[];
+      
+      // Fetch notes from all semesters (1st to 8th)
+      for (int semester = 1; semester <= 8; semester++) {
+        String semesterStr = '${semester}st';
+        if (semester == 2) semesterStr = '2nd';
+        else if (semester == 3) semesterStr = '3rd';
+        else if (semester > 3) semesterStr = '${semester}th';
+        
+        futures.add(_databaseService.getSemesterNotes(semesterStr));
+      }
+      
+      // Also fetch extra course notes
+      futures.add(_databaseService.getExtraCourseNotes());
+      
+      // Execute all fetches in parallel
+      final results = await Future.wait(futures, eagerError: false);
+      
+      // Combine all results
+      List<FirebaseNote> allFirebaseNotes = [];
+      for (final result in results) {
+        allFirebaseNotes.addAll(result);
+      }
+      
+      logger.i('📚 Total notes to search through: ${allFirebaseNotes.length}');
+      
+      // Try to find the Firebase note by matching title and category
+      if (allFirebaseNotes.isNotEmpty) {
+        try {
+          final firebaseNote = allFirebaseNotes.firstWhere(
+            (note) => note.title == pdfNote.title && note.category == pdfNote.subject,
+            orElse: () => allFirebaseNotes.firstWhere(
+              (note) => note.title == pdfNote.title,
+              orElse: () => allFirebaseNotes.firstWhere(
+                (note) => note.category == pdfNote.subject,
+                orElse: () => allFirebaseNotes.first, // Return first note if nothing matches exactly
+              ),
+            ),
+          );
+          
+          logger.i('🎯 Found matching Firebase note: ${firebaseNote.title}');
+          return firebaseNote;
+        } catch (e) {
+          logger.w('⚠️ Could not find exact match, using first available note');
+          return allFirebaseNotes.isNotEmpty ? allFirebaseNotes.first : null;
+        }
+      }
+    } catch (e, stack) {
+      logger.e('❌ Error finding Firebase note', error: e, stackTrace: stack);
+    }
+    
+    return null;
   }
 
   // Get priority semesters for faster loading
@@ -420,295 +489,316 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
 
               // Content area
               Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 50),
-                  physics: const BouncingScrollPhysics(),
-                  children: [
-                    // Document preview
-                    Center(
-                      child: Hero(
-                        tag: 'pdf_${widget.pdfNote.filename}',
-                        child: Container(
-                          width: screenSize.width * 0.5,
-                          height: screenSize.width * 0.5,
-                          decoration: BoxDecoration(
-                            color: isDarkMode ? Colors.grey[850] : Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withAlpha(51),
-                                blurRadius: 15,
-                                offset: const Offset(0, 4),
+                child: _loadingRelated
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                isDarkMode ? Colors.white : Colors.blue,
                               ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: Stack(
-                              children: [
-                                Positioned.fill(
-                                  child: ThumbnailImage(
-                                    imageUrl: widget.pdfNote.thumbnailImage,
-                                    fit: BoxFit.cover,
-                                    isDarkMode: isDarkMode,
-                                  ),
-                                ),
-                                Positioned.fill(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          Colors.transparent,
-                                          Colors.black.withAlpha(179),
-                                        ],
-                                      ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Loading recommendations...',
+                              style: TextStyle(
+                                color: textColor,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 50),
+                        physics: const BouncingScrollPhysics(),
+                        children: [
+                          // Document preview
+                          Center(
+                            child: Hero(
+                              tag: 'pdf_${widget.pdfNote.filename}',
+                              child: Container(
+                                width: screenSize.width * 0.5,
+                                height: screenSize.width * 0.5,
+                                decoration: BoxDecoration(
+                                  color: isDarkMode ? Colors.grey[850] : Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withAlpha(51),
+                                      blurRadius: 15,
+                                      offset: const Offset(0, 4),
                                     ),
-                                  ),
+                                  ],
                                 ),
-                                Positioned(
-                                  bottom: 12,
-                                  left: 12,
-                                  right: 12,
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Stack(
                                     children: [
-                                      Text(
-                                        widget.pdfNote.title,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
+                                      Positioned.fill(
+                                        child: ThumbnailImage(
+                                          imageUrl: widget.pdfNote.thumbnailImage,
+                                          fit: BoxFit.cover,
+                                          isDarkMode: isDarkMode,
                                         ),
                                       ),
-                                      Text(
-                                        widget.pdfNote.subject,
-                                        style: TextStyle(
-                                          color: Colors.white.withAlpha(204),
-                                          fontSize: 12,
+                                      Positioned.fill(
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              begin: Alignment.topCenter,
+                                              end: Alignment.bottomCenter,
+                                              colors: [
+                                                Colors.transparent,
+                                                Colors.black.withAlpha(179),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        bottom: 12,
+                                        left: 12,
+                                        right: 12,
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              widget.pdfNote.title,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                            Text(
+                                              widget.pdfNote.subject,
+                                              style: TextStyle(
+                                                color: Colors.white.withAlpha(204),
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: 12,
+                                        right: 12,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withAlpha(153),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: const Row(
+                                            children: [
+                                              Icon(
+                                                Icons.picture_as_pdf,
+                                                color: Colors.white,
+                                                size: 14,
+                                              ),
+                                              SizedBox(width: 4),
+                                              Text(
+                                                'PDF',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                                Positioned(
-                                  top: 12,
-                                  right: 12,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withAlpha(153),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Row(
-                                      children: [
-                                        Icon(
-                                          Icons.picture_as_pdf,
-                                          color: Colors.white,
-                                          size: 14,
-                                        ),
-                                        SizedBox(width: 4),
-                                        Text(
-                                          'PDF',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // Description section
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color:
+                                  isDarkMode
+                                      ? Colors.grey[850]!.withAlpha(128)
+                                      : Colors.white.withAlpha(179),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Description',
+                                  style: TextStyle(
+                                    color: textColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  widget.pdfNote.description,
+                                  style: TextStyle(
+                                    color:
+                                        isDarkMode
+                                            ? Colors.grey[300]
+                                            : Colors.grey[800],
+                                    fontSize: 14,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        ),
-                      ),
-                    ),
 
-                    const SizedBox(height: 24),
+                          const SizedBox(height: 20),
 
-                    // Description section
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color:
-                            isDarkMode
-                                ? Colors.grey[850]!.withAlpha(128)
-                                : Colors.white.withAlpha(179),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Description',
-                            style: TextStyle(
-                              color: textColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                          // Options section
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 16,
                             ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            widget.pdfNote.description,
-                            style: TextStyle(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
                               color:
                                   isDarkMode
-                                      ? Colors.grey[300]
-                                      : Colors.grey[800],
-                              fontSize: 14,
+                                      ? Colors.black.withAlpha(77)
+                                      : Colors.white.withAlpha(128),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color:
+                                    isDarkMode
+                                        ? Colors.grey.withAlpha(51)
+                                        : Colors.white.withAlpha(204),
+                                width: 1.0,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withAlpha(13),
+                                  blurRadius: 10,
+                                  spreadRadius: 0,
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Options section
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 12,
-                        horizontal: 16,
-                      ),
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color:
-                            isDarkMode
-                                ? Colors.black.withAlpha(77)
-                                : Colors.white.withAlpha(128),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color:
-                              isDarkMode
-                                  ? Colors.grey.withAlpha(51)
-                                  : Colors.white.withAlpha(204),
-                          width: 1.0,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withAlpha(13),
-                            blurRadius: 10,
-                            spreadRadius: 0,
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Options',
-                            style: TextStyle(
-                              color: textColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _buildActionButton(
-                                icon: Icons.visibility,
-                                label: 'View',
-                                color: Colors.blue,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder:
-                                          (context) => PdfViewerScreen(
-                                            pdfNote: widget.pdfNote,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Options',
+                                  style: TextStyle(
+                                    color: textColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                  children: [
+                                    _buildActionButton(
+                                      icon: Icons.visibility,
+                                      label: 'View',
+                                      color: Colors.blue,
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder:
+                                                (context) => PdfViewerScreen(
+                                                  pdfNote: widget.pdfNote,
+                                                ),
                                           ),
+                                        );
+                                      },
                                     ),
-                                  );
-                                },
-                              ),
-                              _buildActionButton(
-                                icon: Icons.share,
-                                label: 'Share',
-                                color: Colors.green,
-                                onTap: () {
-                                  _sharePdf();
-                                },
-                              ),
-                              _buildActionButton(
-                                icon: Icons.download,
-                                label: 'Download',
-                                color: Colors.orange,
-                                onTap: () {
-                                  _downloadPdf();
-                                },
-                              ),
-                              _buildActionButton(
-                                icon:
-                                    isFavorite
-                                        ? Icons.favorite
-                                        : Icons.favorite_border,
-                                label: 'Favorite',
-                                color: Colors.red,
-                                onTap: () {
-                                  // Use the provider to toggle favorite
-                                  favoritesProvider.toggleFavorite(
-                                    widget.pdfNote.id,
-                                  );
+                                    _buildActionButton(
+                                      icon: Icons.share,
+                                      label: 'Share',
+                                      color: Colors.green,
+                                      onTap: () {
+                                        _sharePdf();
+                                      },
+                                    ),
+                                    _buildActionButton(
+                                      icon: Icons.download,
+                                      label: 'Download',
+                                      color: Colors.orange,
+                                      onTap: () {
+                                        _downloadPdf();
+                                      },
+                                    ),
+                                    _buildActionButton(
+                                      icon:
+                                          isFavorite
+                                              ? Icons.favorite
+                                              : Icons.favorite_border,
+                                      label: 'Favorite',
+                                      color: Colors.red,
+                                      onTap: () {
+                                        // Use the provider to toggle favorite
+                                        favoritesProvider.toggleFavorite(
+                                          widget.pdfNote.id,
+                                        );
 
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        favoritesProvider.isFavorite(
-                                              widget.pdfNote.id,
-                                            )
-                                            ? 'Added to favorites'
-                                            : 'Removed from favorites',
-                                      ),
-                                      duration: const Duration(seconds: 1),
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              favoritesProvider.isFavorite(
+                                                    widget.pdfNote.id,
+                                                  )
+                                                  ? 'Added to favorites'
+                                                  : 'Removed from favorites',
+                                            ),
+                                            duration: const Duration(seconds: 1),
+                                          ),
+                                        );
+                                      },
                                     ),
-                                  );
-                                },
-                              ),
-                            ],
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Rule-Based Section - Semester Recommendations
+                          _buildRecommendationSection(
+                            title: '📚 Same Semester Notes',
+                            notes: _semesterNotes,
+                            isDarkMode: isDarkMode,
+                            textColor: textColor,
+                            emptyMessage: 'No semester notes found.',
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // Content-Based Section - Category Recommendations
+                          _buildRecommendationSection(
+                            title: '🎯 You Might Also Like',
+                            notes: _categoryNotes,
+                            isDarkMode: isDarkMode,
+                            textColor: textColor,
+                            emptyMessage: 'No similar notes found.',
                           ),
                         ],
                       ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Rule-Based Section - Semester Recommendations
-                    _buildRecommendationSection(
-                      title: '📚 Same Semester Notes',
-                      notes: _semesterNotes,
-                      isDarkMode: isDarkMode,
-                      textColor: textColor,
-                      emptyMessage: 'No semester notes found.',
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Content-Based Section - Category Recommendations
-                    _buildRecommendationSection(
-                      title: '🎯 You Might Also Like',
-                      notes: _categoryNotes,
-                      isDarkMode: isDarkMode,
-                      textColor: textColor,
-                      emptyMessage: 'No similar notes found.',
-                    ),
-                  ],
-                ),
               ),
             ],
           ),

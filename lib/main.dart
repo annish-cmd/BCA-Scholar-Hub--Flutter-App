@@ -23,11 +23,22 @@ import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 
+// API Keys configuration
+import 'config/api_keys.dart';
+
 // Global key for app state access
 final GlobalKey<MyAppState> myAppKey = GlobalKey<MyAppState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize API keys and environment variables
+  await ApiKeys.init();
+  
+  // Check if API keys are properly configured
+  if (!ApiKeys.isConfigured) {
+    debugPrint('WARNING: API keys not configured. Some features may not work.');
+  }
 
   // Initialize Firebase with a safer approach to avoid duplicate initialization
   try {

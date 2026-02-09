@@ -1,19 +1,24 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:logger/logger.dart';
+import 'package:flutter/foundation.dart';
 import '../models/youtube_video.dart';
 import '../models/firebase_note.dart';
 import '../models/notification.dart' as app_notification;
 import 'dart:async';
 
-class DatabaseService {
+class DatabaseService extends ChangeNotifier {
   final Logger _logger = Logger();
-  late final FirebaseDatabase _database;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseDatabase _database = FirebaseDatabase.instance;
+  
+  // Add caching for semester notes
+  static final Map<String, List<FirebaseNote>> _semesterNotesCache = {};
+  static final Map<String, DateTime> _cacheTimestamps = {};
+  static const Duration _cacheExpiry = Duration(minutes: 5);
 
   DatabaseService() {
     // Initialize Firebase Database with the correct URL
-    _database = FirebaseDatabase.instance;
     _database.databaseURL =
         'https://bcalibraryapp-default-rtdb.asia-southeast1.firebasedatabase.app/';
   }
@@ -245,8 +250,18 @@ class DatabaseService {
     return videos;
   }
 
-  // Fetch extra course notes from the database
+  // Fetch extra course notes from the database with caching
   Future<List<FirebaseNote>> getExtraCourseNotes() async {
+    // Check cache first
+    final now = DateTime.now();
+    const cacheKey = 'extra_course';
+    if (_semesterNotesCache.containsKey(cacheKey) && 
+        _cacheTimestamps.containsKey(cacheKey) &&
+        now.difference(_cacheTimestamps[cacheKey]!) < _cacheExpiry) {
+      _logger.d('Returning cached extra course notes');
+      return _semesterNotesCache[cacheKey]!;
+    }
+    
     _logger.d('Fetching extra course notes from database');
     List<FirebaseNote> notes = [];
 
@@ -278,6 +293,10 @@ class DatabaseService {
         final bTime = b.uploadedAt;
         return bTime.compareTo(aTime);
       });
+      
+      // Cache the results
+      _semesterNotesCache[cacheKey] = notes;
+      _cacheTimestamps[cacheKey] = now;
     } catch (e) {
       _logger.e('Error fetching extra course notes:', error: e);
     }
@@ -285,8 +304,17 @@ class DatabaseService {
     return notes;
   }
 
-  // Fetch semester-specific notes from the database
+  // Fetch semester-specific notes from the database with caching
   Future<List<FirebaseNote>> getSemesterNotes(String semester) async {
+    // Check cache first
+    final now = DateTime.now();
+    if (_semesterNotesCache.containsKey(semester) && 
+        _cacheTimestamps.containsKey(semester) &&
+        now.difference(_cacheTimestamps[semester]!) < _cacheExpiry) {
+      _logger.d('Returning cached notes for semester: $semester');
+      return _semesterNotesCache[semester]!;
+    }
+    
     _logger.d('Fetching notes for semester: $semester');
     List<FirebaseNote> notes = [];
 
@@ -340,6 +368,10 @@ class DatabaseService {
           return bTime.compareTo(aTime);
         });
       }
+      
+      // Cache the results
+      _semesterNotesCache[semester] = notes;
+      _cacheTimestamps[semester] = now;
     } catch (e) {
       _logger.e('Error fetching semester notes:', error: e);
     }
@@ -602,5 +634,12 @@ class DatabaseService {
       _logger.e('Error deleting notification:', error: e);
       rethrow;
     }
+  }
+
+  // Method to clear the semester notes cache (useful for pull-to-refresh)
+  void clearSemesterNotesCache() {
+    _semesterNotesCache.clear();
+    _cacheTimestamps.clear();
+    _logger.d('Cleared semester notes cache');
   }
 }

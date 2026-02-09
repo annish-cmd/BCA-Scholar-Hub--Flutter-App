@@ -59,6 +59,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   // Pull-to-refresh functionality - Clear all caches
   Future<void> _refreshFavorites() async {
     await _cacheManager.clearCache();
+    _databaseService.clearSemesterNotesCache(); // Clear database cache too
     _loadNotesInstantly();
     print('🔄 REFRESH: Cache cleared and reloaded');
   }
@@ -349,55 +350,18 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       color: isDarkMode ? const Color(0xFF262626) : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
-        onTap: () async {
-          // Fetch the corresponding Firebase note for better recommendations
-          FirebaseNote? firebaseNote;
-          try {
-            // Get all notes by combining semester notes and extra course notes
-            List<FirebaseNote> allFirebaseNotes = [];
-            
-            // Get notes from all semesters (1st to 8th)
-            for (int semester = 1; semester <= 8; semester++) {
-              String semesterStr = '${semester}st';
-              if (semester == 2) semesterStr = '2nd';
-              else if (semester == 3) semesterStr = '3rd';
-              else if (semester > 3) semesterStr = '${semester}th';
-              
-              final semesterNotes = await _databaseService.getSemesterNotes(semesterStr);
-              allFirebaseNotes.addAll(semesterNotes);
-            }
-            
-            // Also get extra course notes
-            final extraNotes = await _databaseService.getExtraCourseNotes();
-            allFirebaseNotes.addAll(extraNotes);
-            
-            // Try to find the Firebase note by matching title and category
-            firebaseNote = allFirebaseNotes.firstWhere(
-              (note) => note.title == pdf.title && note.category == pdf.subject,
-              orElse: () => allFirebaseNotes.firstWhere(
-                (note) => note.title == pdf.title,
-                orElse: () => allFirebaseNotes.firstWhere(
-                  (note) => note.category == pdf.subject,
-                  orElse: () => allFirebaseNotes.isNotEmpty ? allFirebaseNotes.first : throw StateError('No notes found'),
-                ),
+        onTap: () {
+          // Navigate immediately without fetching data first
+          // Let the PdfOptionsScreen handle data loading
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PdfOptionsScreen(
+                pdfNote: pdf,
+                firebaseNote: null, // Let PdfOptionsScreen handle finding the Firebase note
               ),
-            );
-          } catch (e) {
-            print('Could not find matching Firebase note: $e');
-            firebaseNote = null;
-          }
-          
-          if (mounted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => PdfOptionsScreen(
-                  pdfNote: pdf,
-                  firebaseNote: firebaseNote,
-                ),
-              ),
-            );
-          }
+            ),
+          );
         },
         borderRadius: BorderRadius.circular(12),
         child: Row(

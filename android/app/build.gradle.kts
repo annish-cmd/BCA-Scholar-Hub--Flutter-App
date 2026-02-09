@@ -41,9 +41,9 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
-            // Disable shrinking, obfuscation, and optimization to prevent issues with lightweight APK
-            isShrinkResources = false
-            isMinifyEnabled = false
+            // Enable shrinking, obfuscation, and optimization for better security
+            isShrinkResources = true
+            isMinifyEnabled = true
         }
     }
 }
