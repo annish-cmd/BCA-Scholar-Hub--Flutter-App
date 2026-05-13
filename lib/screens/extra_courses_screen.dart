@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme_provider.dart';
 import '../utils/app_localizations.dart';
-import '../models/pdf_note.dart';
 import '../models/firebase_note.dart';
 import '../services/database_service.dart';
 import 'pdf_details_screen.dart';
