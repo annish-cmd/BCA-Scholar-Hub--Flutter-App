@@ -25,11 +25,12 @@ class _AIChatScreenState extends State<AIChatScreen>
   final ScrollController _scrollController = ScrollController();
   final List<ChatMessage> _messages = [];
   bool _isTyping = false;
+  bool _showSetupPrompt = false;
 
   // Multiple API keys configuration - using the config file
-  final List<String> _apiKeys = ApiKeys.openRouterApiKeys;
+  late final List<String> _apiKeys;
   int _currentApiKeyIndex = 0;
-  late final List<bool> _apiKeyExhausted; // Track exhausted keys
+  late List<bool> _apiKeyExhausted; // Track exhausted keys
 
   // API configuration - using the config file
   final String _apiUrl = ApiKeys.openRouterApiUrl;
@@ -43,11 +44,40 @@ class _AIChatScreenState extends State<AIChatScreen>
   // Key for storing chat messages in SharedPreferences
   static const String _chatMessagesKey = 'ai_chat_messages';
 
+  @override
+  void initState() {
+    super.initState();
+
+    _typingController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+
+    // Check if API keys are configured
+    if (!ApiKeys.isConfigured) {
+      _apiKeys = [];
+      _apiKeyExhausted = [];
+      _showSetupPrompt = true;
+    } else {
+      _apiKeys = ApiKeys.validApiKeys;
+      _apiKeyExhausted = List.filled(_apiKeys.length, false);
+    }
+
+    // Start typing animation
+    _typingController.repeat(reverse: true);
+
+    // Load saved messages or add welcome message if none exist
+    _loadSavedMessages();
+  }
+
   // Get current API key
-  String get _currentApiKey => _apiKeys[_currentApiKeyIndex];
+  String get _currentApiKey => _apiKeys.isNotEmpty ? _apiKeys[_currentApiKeyIndex] : '';
 
   // Switch to next available API key
   bool _switchToNextApiKey() {
+    // If no API keys configured, return false
+    if (_apiKeys.isEmpty) return false;
+
     // Mark current key as exhausted
     _apiKeyExhausted[_currentApiKeyIndex] = true;
 
@@ -62,16 +92,9 @@ class _AIChatScreenState extends State<AIChatScreen>
     }
 
     // All keys are currently marked as exhausted
-    // This could happen if:
-    // 1. All keys have genuinely hit their rate limits
-    // 2. There might be a temporary network issue
-    // 3. The daily quota may have reset
-    
-    // Let's try to reset and cycle through all keys again
-    // This handles the case where the daily quota may have reset or it was a temporary issue
     debugPrint('All API keys are marked as exhausted. Attempting to reset and retry.');
     _resetApiKeyStatus();
-    
+
     // Now try to use the first key again
     _currentApiKeyIndex = 0;
     debugPrint('Reset API keys and trying with key 1 again');
@@ -80,12 +103,14 @@ class _AIChatScreenState extends State<AIChatScreen>
 
   // Reset API key status (for testing)
   void _resetApiKeyStatus() {
+    if (_apiKeyExhausted.isEmpty) return;
+
     for (int i = 0; i < _apiKeyExhausted.length; i++) {
       _apiKeyExhausted[i] = false;
     }
     _currentApiKeyIndex = 0;
     debugPrint('All API keys reset');
-    
+
     // Show a snackbar to inform the user that keys have been reset
     if (mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -99,20 +124,138 @@ class _AIChatScreenState extends State<AIChatScreen>
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-
-    // Initialize the API key exhausted list based on the number of keys
-    _apiKeyExhausted = List.generate(_apiKeys.length, (_) => false);
-
-    _typingController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    // Load saved messages or add welcome message if none exist
-    _loadSavedMessages();
+  // Build setup prompt when no API keys configured
+  Widget _buildSetupPrompt(bool isDarkMode) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDarkMode
+              ? [const Color(0xFF121212), const Color(0xFF1D1D1D)]
+              : [const Color(0xFFE8EAF6), const Color(0xFFF5F7FF)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.key_outlined,
+                size: 80,
+                color: isDarkMode ? Colors.blue[300] : Colors.blue[700],
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'API Key Required',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'To use the AI Assistant feature, you need to add your OpenRouter API key.\n\n'
+                'This is free and takes just a minute to set up!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                ),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: () {
+                  // Show instructions dialog
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      title: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.blue),
+                          const SizedBox(width: 8),
+                          const Text('How to Add API Key'),
+                        ],
+                      ),
+                      content: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '1. Go to https://openrouter.ai/keys\n\n'
+                              '2. Create a free account\n\n'
+                              '3. Copy your API key\n\n'
+                              '4. Open lib/config/api_keys.dart\n\n'
+                              '5. Add your key to openRouterApiKeys list\n\n'
+                              'Example:\n'
+                              'static const List<String> openRouterApiKeys = [\n'
+                              '  "sk-or-v1-xxxxxxxxxxxxxxxx",\n'
+                              '];',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Got it!'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.help_outline),
+                label: const Text('How to Add API Key'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: () {
+                  // Navigate back
+                  _saveMessages();
+                  final List<Widget> pages = myAppKey.currentState?.getPages() ?? [];
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => HomeScreen(
+                        currentIndex: 0,
+                        pages: pages,
+                        onIndexChanged: (index) {
+                          myAppKey.currentState?.updateIndex(index);
+                        },
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Go Back'),
+                style: TextButton.styleFrom(
+                  foregroundColor: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // Load saved messages from local storage
@@ -653,7 +796,9 @@ class _AIChatScreenState extends State<AIChatScreen>
             ),
           ],
         ),
-        body: Container(
+        body: _showSetupPrompt
+          ? _buildSetupPrompt(isDarkMode)
+          : Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors:

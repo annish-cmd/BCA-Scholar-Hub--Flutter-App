@@ -334,12 +334,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
+    final isDarkMode = context.select((ThemeProvider tp) => tp.isDarkMode);
     final textColor = isDarkMode ? Colors.white : Colors.black87;
     final screenSize = MediaQuery.of(context).size;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -437,6 +437,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextFormField(
                           controller: _emailController,
                           style: TextStyle(color: textColor),
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          autocorrect: false,
                           decoration: InputDecoration(
                             labelText: 'Email or Username',
                             labelStyle: TextStyle(
@@ -472,6 +475,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           controller: _passwordController,
                           style: TextStyle(color: textColor),
                           obscureText: !_isPasswordVisible,
+                          textInputAction: TextInputAction.done,
+                          keyboardType: TextInputType.visiblePassword,
+                          autocorrect: false,
                           decoration: InputDecoration(
                             labelText: 'Password',
                             labelStyle: TextStyle(

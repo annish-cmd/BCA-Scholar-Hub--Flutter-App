@@ -284,6 +284,7 @@ class _HomeContentScreenState extends State<HomeContentScreen> {
                       itemBuilder: (context, index) {
                         final note = HomeContentScreen.pdfNotes[index];
                         return Card(
+                          key: ValueKey(note.id),
                           margin: const EdgeInsets.only(bottom: 10),
                           elevation: 2,
                           shape: RoundedRectangleBorder(

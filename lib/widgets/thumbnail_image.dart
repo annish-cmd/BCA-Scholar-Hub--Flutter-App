@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ThumbnailImage extends StatelessWidget {
   final String imageUrl;
@@ -20,12 +21,11 @@ class ThumbnailImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isNetworkImage = imageUrl.startsWith('http://') || 
-                          imageUrl.startsWith('https://') || 
-                          imageUrl.contains('supabase.co') || 
+    final isNetworkImage = imageUrl.startsWith('http://') ||
+                          imageUrl.startsWith('https://') ||
+                          imageUrl.contains('supabase.co') ||
                           imageUrl.contains('://');
 
-    // Default fallback widget
     Widget fallbackWidget = Container(
       height: height,
       width: width,
@@ -40,31 +40,31 @@ class ThumbnailImage extends StatelessWidget {
     Widget imageWidget;
 
     if (isNetworkImage) {
-      // Handle network images
-      imageWidget = Image.network(
-        imageUrl,
+      imageWidget = CachedNetworkImage(
+        imageUrl: imageUrl,
         height: height,
         width: width,
         fit: fit,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Container(
-            height: height,
-            width: width,
-            color: isDarkMode ? Colors.grey[800] : Colors.grey[200],
-            child: Center(
+        placeholder: (context, url) => Container(
+          height: height,
+          width: width,
+          color: isDarkMode ? Colors.grey[800] : Colors.grey[200],
+          child: Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
               child: CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                    : null,
+                strokeWidth: 2,
+                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
               ),
             ),
-          );
-        },
-        errorBuilder: (context, error, stackTrace) => fallbackWidget,
+          ),
+        ),
+        errorWidget: (context, url, error) => fallbackWidget,
+        memCacheWidth: width != null ? (width! * 2).toInt() : null,
+        memCacheHeight: height != null ? (height! * 2).toInt() : null,
       );
     } else {
-      // Handle asset images
       imageWidget = Image.asset(
         'assets/images/$imageUrl',
         height: height,

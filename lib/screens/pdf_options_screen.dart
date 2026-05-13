@@ -936,102 +936,93 @@ class _PdfOptionsScreenState extends State<PdfOptionsScreen>
     }
     return notes.map((note) {
       return Padding(
-        padding: const EdgeInsets.only(right: 16.0),
-        child: GestureDetector(
-          onTap: () {
-            // Check if this is a hardcoded PDF recommendation
-            if (note.semester == 'Hardcoded') {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => PdfOptionsScreen(
-                    pdfNote: note.toPdfNote(),
-                    firebaseNote: null, // No Firebase data for hardcoded PDFs
-                  ),
-                ),
-              );
-            } else {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => PdfOptionsScreen(
-                    pdfNote: note.toPdfNote(),
-                    firebaseNote: note,
-                  ),
-                ),
-              );
-            }
-          },
-          child: Container(
-            width: 110,
-            height: 150,
-            decoration: BoxDecoration(
-              color: isDarkMode ? Colors.grey[850] : Colors.white,
+        padding: const EdgeInsets.only(right: 12.0),
+        child: SizedBox(
+          width: 110,
+          height: 150,
+          child: Material(
+            color: isDarkMode ? Colors.grey[850] : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            elevation: 2,
+            shadowColor: Colors.black26,
+            child: InkWell(
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(26),
-                  blurRadius: 8,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-              border: Border.all(
-                color: isDarkMode ? Colors.grey.withAlpha(51) : Colors.grey.withAlpha(77),
-                width: 1,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.max,
-              children: [
-                // Image section (smaller fixed height)
-                SizedBox(
-                  height: 80,
-                  width: double.infinity,
-                  child: ClipRRect(
+              onTap: () {
+                // Check if this is a hardcoded PDF recommendation
+                if (note.semester == 'Hardcoded') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PdfOptionsScreen(
+                        pdfNote: note.toPdfNote(),
+                        firebaseNote: null, // No Firebase data for hardcoded PDFs
+                      ),
+                    ),
+                  );
+                } else {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PdfOptionsScreen(
+                        pdfNote: note.toPdfNote(),
+                        firebaseNote: note,
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  // Image section (smaller fixed height)
+                  ClipRRect(
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(12),
                       topRight: Radius.circular(12),
                     ),
-                    child: ThumbnailImage(
-                      imageUrl: note.imageUrl,
-                      fit: BoxFit.cover,
-                      isDarkMode: isDarkMode,
-                    ),
-                  ),
-                ),
-                // Title section only (no description)
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 6,
-                      horizontal: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isDarkMode ? Colors.black.withAlpha(51) : Colors.grey.withAlpha(26),
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(12),
-                        bottomRight: Radius.circular(12),
+                    child: SizedBox(
+                      height: 80,
+                      width: double.infinity,
+                      child: ThumbnailImage(
+                        imageUrl: note.imageUrl,
+                        fit: BoxFit.cover,
+                        isDarkMode: isDarkMode,
                       ),
                     ),
-                    child: Center(
-                      child: Text(
-                        note.title,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: isDarkMode ? Colors.white : Colors.black87,
+                  ),
+                  // Title section only (no description)
+                  Expanded(
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 6,
+                        horizontal: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isDarkMode ? Colors.black.withAlpha(51) : Colors.grey.withAlpha(26),
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(12),
+                          bottomRight: Radius.circular(12),
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
+                      ),
+                      child: Center(
+                        child: Text(
+                          note.title,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: isDarkMode ? Colors.white : Colors.black87,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

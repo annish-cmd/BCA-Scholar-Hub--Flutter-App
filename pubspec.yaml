@@ -43,6 +43,7 @@ dependencies:
   flutter_inappwebview: ^6.0.0
   timeago: ^3.7.0
   dio: ^5.4.0
+  cached_network_image: ^3.4.1
 
   # Encryption dependencies
   encrypt: ^5.0.3

@@ -1,9 +1,11 @@
 # Global Chat Feature Documentation
 
 ## Overview
+
 The Global Chat feature allows users of the BCA Library app to communicate with each other in real-time. It's a shared space where users can send messages that will be visible to all other users who have logged in to the app.
 
 ## Features
+
 - Real-time messaging
 - User authentication required
 - Messages include user names and timestamps
@@ -59,6 +61,7 @@ To make the Global Chat feature work, you need to configure Firebase Realtime Da
 ## How It Works
 
 ### Technical Implementation
+
 - The Global Chat uses Firebase Realtime Database to store and retrieve messages
 - Messages are stored in the `global_chat` node in the database
 - Each message contains:
@@ -69,6 +72,7 @@ To make the Global Chat feature work, you need to configure Firebase Realtime Da
   - userPhotoUrl (optional): The URL to the user's profile photo
 
 ### User Flow
+
 1. User navigates to the Global Chat from the app's drawer menu
 2. If not logged in, they see a login required screen
 3. Once logged in, they can see messages from other users
@@ -76,6 +80,7 @@ To make the Global Chat feature work, you need to configure Firebase Realtime Da
 5. New messages appear in real-time for all users
 
 ## Security
+
 - Only authenticated users can read and write messages
 - Users can only send messages with their own userId
 - Messages are validated to ensure they contain all required fields
@@ -83,12 +88,14 @@ To make the Global Chat feature work, you need to configure Firebase Realtime Da
 - Timestamps are validated to prevent future-dated messages
 
 ## Limitations
+
 - No support for message editing
 - No support for multimedia messages (images, videos, etc.)
 - No user blocking functionality
 
 ## Future Improvements
+
 - Add support for image sharing
 - Add message reactions
 - Add user profile view on tap of username
-- Add message search functionality 
+- Add message search functionality

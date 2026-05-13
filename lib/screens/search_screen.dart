@@ -465,6 +465,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       itemBuilder: (context, index) {
                         final result = _searchResults[index];
                         return Card(
+                          key: ValueKey('${result.subject}_${result.semester}'),
                           margin: const EdgeInsets.only(bottom: 10),
                           elevation: 2,
                           shape: RoundedRectangleBorder(

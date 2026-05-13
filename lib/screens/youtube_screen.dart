@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../utils/theme_provider.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../services/database_service.dart';
@@ -230,13 +231,15 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                           padding: const EdgeInsets.all(16),
                           itemCount: _allVideos.length,
                           itemBuilder: (context, index) {
+                            final video = _allVideos[index];
                             return Padding(
+                              key: ValueKey(video.id),
                               padding: const EdgeInsets.only(bottom: 16),
                               child: _buildYoutubeVideoCard(
                                 context,
                                 isDarkMode,
                                 textColor,
-                                _allVideos[index],
+                                video,
                                 index,
                               ),
                             );
@@ -316,12 +319,22 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                       topLeft: Radius.circular(15),
                       topRight: Radius.circular(15),
                     ),
-                    child: Image.network(
-                      'https://img.youtube.com/vi/${video.youtubeVideoId}/maxresdefault.jpg',
+                    child: CachedNetworkImage(
+                      imageUrl: 'https://img.youtube.com/vi/${video.youtubeVideoId}/maxresdefault.jpg',
                       width: double.infinity,
                       height: 200,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
+                      placeholder: (context, url) => Container(
+                        width: double.infinity,
+                        height: 200,
+                        color: Colors.grey[800],
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: isDarkMode ? Colors.purpleAccent : Colors.blue,
+                          ),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) {
                         return Container(
                           width: double.infinity,
                           height: 200,

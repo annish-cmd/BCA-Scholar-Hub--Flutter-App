@@ -37,7 +37,6 @@ A Flutter mobile application providing access to BCA (Bachelor of Computer Appli
 
 💾 LRU Caching — Stores recently opened PDFs in temporary storage (cache) so they remain viewable even without internet. Keeps up to 10 files or 500 MB, automatically replacing the oldest file when the limit is reached.
 
-
 ## Global Chat Feature
 
 The newest addition to the app is the Global Chat, which allows students to communicate with each other in real-time. This feature:
@@ -80,6 +79,6 @@ Make sure to set up Firebase rules correctly for secure operation. See the [Glob
 - Flutter
 - Firebase Authentication
 - Firebase Realtime Database
-- Firebase Storage
+- Supabase Storage
 - Provider State Management
 - Shared Preferences

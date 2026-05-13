@@ -137,12 +137,12 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
+    final isDarkMode = context.select((ThemeProvider tp) => tp.isDarkMode);
     final textColor = isDarkMode ? Colors.white : Colors.black87;
     final screenSize = MediaQuery.of(context).size;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -247,6 +247,9 @@ class _SignupScreenState extends State<SignupScreen> {
                         TextFormField(
                           controller: _nameController,
                           style: TextStyle(color: textColor),
+                          textInputAction: TextInputAction.next,
+                          keyboardType: TextInputType.name,
+                          autocorrect: false,
                           decoration: InputDecoration(
                             labelText: 'Full Name',
                             labelStyle: TextStyle(
@@ -282,6 +285,8 @@ class _SignupScreenState extends State<SignupScreen> {
                           controller: _emailController,
                           style: TextStyle(color: textColor),
                           keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          autocorrect: false,
                           decoration: InputDecoration(
                             labelText: 'Email Address',
                             labelStyle: TextStyle(
@@ -323,6 +328,9 @@ class _SignupScreenState extends State<SignupScreen> {
                           controller: _passwordController,
                           style: TextStyle(color: textColor),
                           obscureText: !_isPasswordVisible,
+                          textInputAction: TextInputAction.next,
+                          keyboardType: TextInputType.visiblePassword,
+                          autocorrect: false,
                           decoration: InputDecoration(
                             labelText: 'Password',
                             labelStyle: TextStyle(
@@ -370,6 +378,9 @@ class _SignupScreenState extends State<SignupScreen> {
                           controller: _confirmPasswordController,
                           style: TextStyle(color: textColor),
                           obscureText: !_isConfirmPasswordVisible,
+                          textInputAction: TextInputAction.done,
+                          keyboardType: TextInputType.visiblePassword,
+                          autocorrect: false,
                           decoration: InputDecoration(
                             labelText: 'Confirm Password',
                             labelStyle: TextStyle(

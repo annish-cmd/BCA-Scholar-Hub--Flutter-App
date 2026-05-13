@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:async';
 import '../utils/theme_provider.dart';
 import '../services/notice_service.dart';
@@ -244,6 +245,7 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
         itemBuilder: (context, index) {
           final notice = _notices[index];
           return ProfessionalNoticeCard(
+            key: ValueKey(notice.id),
             notice: notice,
             isDarkMode: isDarkMode,
             onTap: () => _showNoticeDetails(notice, isDarkMode, textColor),
@@ -344,15 +346,27 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
                           const SizedBox(height: 20),
                           ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              notice.imageUrl!,
+                            child: CachedNetworkImage(
+                              imageUrl: notice.imageUrl!,
                               width: double.infinity,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
+                              placeholder: (context, url) => Container(
+                                height: 200,
+                                color: isDarkMode ? Colors.grey[800] : Colors.grey[200],
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    color: isDarkMode ? Colors.purpleAccent : Colors.blue,
+                                  ),
+                                ),
+                              ),
+                              errorWidget: (context, url, error) {
                                 return Container(
                                   height: 200,
-                                  color: Colors.grey[300],
-                                  child: const Icon(Icons.broken_image),
+                                  color: isDarkMode ? Colors.grey[800] : Colors.grey[300],
+                                  child: Icon(
+                                    Icons.broken_image,
+                                    color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                                  ),
                                 );
                               },
                             ),
